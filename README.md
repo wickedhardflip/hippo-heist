@@ -28,6 +28,8 @@ You're a hippo with a mission: steal bananas from trees and feed them to a leopa
 - **Use Water** - Hide in water to escape farmers (they can't swim!)
 - **Beat the Clock** - Complete each level before time runs out
 
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/c107495f-fab7-4cda-bc29-028b08c706d1" />
+
 ## Levels
 
 | Level | Name | Challenge |
@@ -54,6 +56,8 @@ Built with:
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for technical documentation.
 
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/7971dfd9-5411-48c4-a415-bdbc1813a1c6" />
+
 ## Browser Support
 
 Works in all modern browsers:
@@ -65,10 +69,6 @@ Works in all modern browsers:
 ## License
 
 MIT License - feel free to use, modify, and share!
-
-## Credits
-
-Created with assistance from [Claude Code](https://claude.com/claude-code)
 
 ---
 
