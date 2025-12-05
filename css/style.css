@@ -629,11 +629,19 @@ body {
     }
 
     .title-hippo::before {
-        box-shadow: calc(70px * 0.47) 0 0 0 #fff;
+        top: 20%;
+        left: 18%;
+        width: 17%;
+        height: 24%;
+        box-shadow: 33px 0 0 0 #fff;
     }
 
     .title-hippo::after {
-        box-shadow: calc(70px * 0.47) 0 0 #232931;
+        top: 26%;
+        left: 23%;
+        width: 7%;
+        height: 10%;
+        box-shadow: 33px 0 0 #232931;
     }
 
     .game-btn {
@@ -722,11 +730,19 @@ body {
     }
 
     .title-hippo::before {
-        box-shadow: calc(50px * 0.47) 0 0 0 #fff;
+        top: 20%;
+        left: 18%;
+        width: 17%;
+        height: 24%;
+        box-shadow: 23px 0 0 0 #fff;
     }
 
     .title-hippo::after {
-        box-shadow: calc(50px * 0.47) 0 0 #232931;
+        top: 26%;
+        left: 23%;
+        width: 7%;
+        height: 10%;
+        box-shadow: 23px 0 0 #232931;
     }
 
     .game-btn {
