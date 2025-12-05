@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hippo Heist</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Title Screen -->
+        <div id="title-screen" class="screen">
+            <div class="title-content">
+                <h1 class="game-title">HIPPO HEIST</h1>
+                <div class="title-hippo"></div>
+                <button id="start-btn" class="game-btn">START GAME</button>
+                <button id="rules-btn" class="game-btn secondary">HOW TO PLAY</button>
+            </div>
+        </div>
+
+        <!-- Rules Screen -->
+        <div id="rules-screen" class="screen hidden">
+            <div class="screen-content rules-content">
+                <h2>How to Play</h2>
+                <div class="rules-box">
+                    <div class="rule-section">
+                        <h3>Your Mission</h3>
+                        <p>You're a hungry hippo helping feed a leopard! Steal bananas from trees and deliver them before time runs out.</p>
+                    </div>
+                    <div class="rule-section">
+                        <h3>Controls</h3>
+                        <p><span class="key">WASD</span> or <span class="key">Arrow Keys</span> - Move</p>
+                        <p><span class="key">SPACE</span> - Grab bananas / Feed leopard / Eat farmers</p>
+                    </div>
+                    <div class="rule-section">
+                        <h3>Tips & Tricks</h3>
+                        <ul>
+                            <li>Hide in the <span class="highlight water">water canals</span> to avoid farmers</li>
+                            <li>Lure farmers near water, then <span class="highlight eat">EAT THEM</span> for health!</li>
+                            <li>You can carry up to <span class="highlight banana">5 bananas</span> at once</li>
+                            <li>Feeding the leopard restores 1 health</li>
+                            <li>Watch the timer - complete each level in 60 seconds!</li>
+                        </ul>
+                    </div>
+                </div>
+                <button id="rules-back-btn" class="game-btn">GOT IT!</button>
+            </div>
+        </div>
+
+        <!-- Level Intro Screen -->
+        <div id="level-intro" class="screen hidden">
+            <div class="screen-content level-intro-content">
+                <h2 id="intro-level-title">Level 1</h2>
+                <h3 id="intro-level-name">The Rescue</h3>
+                <div id="intro-objectives" class="objectives-box"></div>
+                <div class="intro-timer">
+                    <span class="timer-icon">&#9200;</span> 60 seconds
+                </div>
+                <button id="start-level-btn" class="game-btn pulse">START LEVEL</button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden">
+            <div class="hud-left">
+                <div id="health-display"></div>
+                <div id="banana-count">Bananas: 0/5</div>
+            </div>
+            <div class="hud-center">
+                <div id="timer-display">1:00</div>
+            </div>
+            <div class="hud-right">
+                <div id="level-name">Level 1: The Rescue</div>
+                <div id="level-progress">Fed: 0/8</div>
+                <div id="farmer-count" class="hidden">Farmers eaten: 0/2</div>
+            </div>
+            <button id="mute-btn" class="mute-btn">🔊</button>
+        </div>
+
+        <!-- Level Complete Screen -->
+        <div id="level-complete" class="screen hidden">
+            <div class="screen-content">
+                <h2>Level Complete!</h2>
+                <div id="level-stats"></div>
+                <button id="next-level-btn" class="game-btn">Next Level</button>
+            </div>
+        </div>
+
+        <!-- Time's Up Screen -->
+        <div id="times-up" class="screen hidden">
+            <div class="screen-content">
+                <h2>Time's Up!</h2>
+                <p>The farmers caught on to your plan!</p>
+                <button id="retry-time-btn" class="game-btn">Try Again</button>
+                <button id="menu-time-btn" class="game-btn secondary">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over" class="screen hidden">
+            <div class="screen-content">
+                <h2>Game Over</h2>
+                <p>The farmers got you!</p>
+                <button id="retry-btn" class="game-btn">Try Again</button>
+                <button id="menu-btn" class="game-btn secondary">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Victory Screen -->
+        <div id="victory" class="screen hidden">
+            <div class="screen-content">
+                <h2>Victory!</h2>
+                <p>You saved the leopard!</p>
+                <div id="final-stats"></div>
+                <button id="play-again-btn" class="game-btn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/input.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/farmer.js"></script>
+    <script src="js/leopard.js"></script>
+    <script src="js/level.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
