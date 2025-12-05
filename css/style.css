@@ -513,3 +513,191 @@ body {
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
+
+/* Touch Controls */
+#touch-controls {
+    display: none; /* Hidden by default, shown via JS on touch devices */
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    padding: 0 20px;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.dpad {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    pointer-events: auto;
+}
+
+.dpad-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: rgba(78, 204, 163, 0.6);
+    border: 2px solid rgba(78, 204, 163, 0.8);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    transition: background 0.1s, transform 0.1s;
+}
+
+.dpad-btn.up {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.dpad-btn.down {
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.dpad-btn.left {
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.dpad-btn.right {
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.dpad-btn.active {
+    background: rgba(78, 204, 163, 0.9);
+    transform: scale(0.95);
+}
+
+.dpad-btn.up.active,
+.dpad-btn.down.active {
+    transform: translateX(-50%) scale(0.95);
+}
+
+.dpad-btn.left.active,
+.dpad-btn.right.active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.action-btn {
+    width: 70px;
+    height: 70px;
+    background: rgba(241, 196, 15, 0.7);
+    border: 3px solid rgba(241, 196, 15, 0.9);
+    border-radius: 50%;
+    color: #fff;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    pointer-events: auto;
+    transition: background 0.1s, transform 0.1s;
+}
+
+.action-btn.active {
+    background: rgba(241, 196, 15, 0.95);
+    transform: scale(0.92);
+}
+
+/* Mobile Responsive */
+@media (max-width: 850px) {
+    body {
+        align-items: flex-start;
+        padding-top: 10px;
+    }
+
+    #game-container {
+        width: 100vw;
+        height: auto;
+        aspect-ratio: 4/3;
+        max-height: 60vh;
+        border-radius: 0;
+    }
+
+    .game-title {
+        font-size: 42px;
+        letter-spacing: 3px;
+    }
+
+    .title-hippo {
+        width: 100px;
+        height: 70px;
+    }
+
+    .game-btn {
+        padding: 12px 32px;
+        font-size: 16px;
+    }
+
+    .hud-left, .hud-right {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .hud-center {
+        padding: 6px 16px;
+        font-size: 18px;
+    }
+
+    #touch-controls {
+        bottom: 15px;
+    }
+
+    .dpad {
+        width: 120px;
+        height: 120px;
+    }
+
+    .dpad-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 16px;
+    }
+
+    .action-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    .game-title {
+        font-size: 32px;
+    }
+
+    .rules-content {
+        max-width: 95vw;
+        padding: 10px;
+    }
+
+    .rules-box {
+        padding: 10px 15px;
+    }
+
+    .rule-section h3 {
+        font-size: 14px;
+    }
+
+    .rule-section p,
+    .rule-section ul {
+        font-size: 12px;
+    }
+}

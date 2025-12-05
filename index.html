@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hippo Heist</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -117,6 +117,17 @@
                 <button id="play-again-btn" class="game-btn">Play Again</button>
             </div>
         </div>
+    </div>
+
+    <!-- Touch Controls (hidden by default, shown on touch devices) -->
+    <div id="touch-controls">
+        <div class="dpad">
+            <button id="dpad-up" class="dpad-btn up">▲</button>
+            <button id="dpad-left" class="dpad-btn left">◀</button>
+            <button id="dpad-right" class="dpad-btn right">▶</button>
+            <button id="dpad-down" class="dpad-btn down">▼</button>
+        </div>
+        <button id="action-btn" class="action-btn">A</button>
     </div>
 
     <script src="js/input.js"></script>
