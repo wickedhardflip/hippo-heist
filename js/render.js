@@ -50,8 +50,11 @@ const Render = {
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+
+        // Set canvas size based on container
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
         this.ctx.imageSmoothingEnabled = false;
 
         // Polyfill for roundRect if not supported
@@ -73,6 +76,32 @@ const Render = {
                 this.closePath();
             };
         }
+    },
+
+    resizeCanvas() {
+        const container = document.getElementById('game-container');
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        // Maintain 4:3 aspect ratio, fit within container
+        const targetRatio = 4 / 3;
+        const containerRatio = containerWidth / containerHeight;
+
+        let width, height;
+        if (containerRatio > targetRatio) {
+            // Container is wider than 4:3
+            height = containerHeight;
+            width = height * targetRatio;
+        } else {
+            // Container is taller than 4:3
+            width = containerWidth;
+            height = width / targetRatio;
+        }
+
+        this.canvas.width = Math.floor(width);
+        this.canvas.height = Math.floor(height);
+        this.canvas.style.width = width + 'px';
+        this.canvas.style.height = height + 'px';
     },
 
     clear() {
