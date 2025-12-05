@@ -6,6 +6,8 @@ A fun browser-based arcade game where you play as a mischievous hippo stealing b
 
 Simply open `index.html` in any modern web browser - no installation required!
 
+<img width="788" height="580" alt="image" src="https://github.com/user-attachments/assets/6dd2d93f-944b-4524-8d9e-8a29a1be2b5c" />
+
 ## Gameplay
 
 You're a hippo with a mission: steal bananas from trees and feed them to a leopard. But watch out - the farmers aren't happy about your thievery!
