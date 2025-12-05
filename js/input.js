@@ -2,11 +2,13 @@
 const Input = {
     keys: {},
     touch: {
-        up: false,
-        down: false,
-        left: false,
-        right: false,
         action: false
+    },
+    // Joystick state - values from -1 to 1
+    joystick: {
+        x: 0,
+        y: 0,
+        active: false
     },
     isTouchDevice: false,
 
@@ -35,41 +37,73 @@ const Input = {
         // Show touch controls
         const touchControls = document.getElementById('touch-controls');
         if (touchControls) {
-            touchControls.style.display = 'flex';
+            touchControls.style.display = 'block';
         }
 
-        // D-Pad buttons
-        const buttons = {
-            'dpad-up': 'up',
-            'dpad-down': 'down',
-            'dpad-left': 'left',
-            'dpad-right': 'right',
-            'action-btn': 'action'
-        };
+        // Joystick setup
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickThumb = document.getElementById('joystick-thumb');
 
-        for (const [id, dir] of Object.entries(buttons)) {
-            const btn = document.getElementById(id);
-            if (btn) {
-                // Touch start
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.touch[dir] = true;
-                    btn.classList.add('active');
-                });
+        if (joystickZone && joystickThumb) {
+            let touchId = null;
 
-                // Touch end
-                btn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.touch[dir] = false;
-                    btn.classList.remove('active');
-                });
+            joystickZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (touchId === null) {
+                    const touch = e.changedTouches[0];
+                    touchId = touch.identifier;
+                    this.joystick.active = true;
+                    joystickThumb.classList.add('active');
+                    this.updateJoystick(touch, joystickBase, joystickThumb);
+                }
+            });
 
-                // Handle touch leaving the button
-                btn.addEventListener('touchcancel', (e) => {
-                    this.touch[dir] = false;
-                    btn.classList.remove('active');
-                });
-            }
+            joystickZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (const touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        this.updateJoystick(touch, joystickBase, joystickThumb);
+                    }
+                }
+            });
+
+            const endJoystick = (e) => {
+                for (const touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        touchId = null;
+                        this.joystick.active = false;
+                        this.joystick.x = 0;
+                        this.joystick.y = 0;
+                        joystickThumb.classList.remove('active');
+                        joystickThumb.style.transform = 'translate(0, 0)';
+                    }
+                }
+            };
+
+            joystickZone.addEventListener('touchend', endJoystick);
+            joystickZone.addEventListener('touchcancel', endJoystick);
+        }
+
+        // Action button
+        const actionBtn = document.getElementById('action-btn');
+        if (actionBtn) {
+            actionBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.touch.action = true;
+                actionBtn.classList.add('active');
+            });
+
+            actionBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.touch.action = false;
+                actionBtn.classList.remove('active');
+            });
+
+            actionBtn.addEventListener('touchcancel', (e) => {
+                this.touch.action = false;
+                actionBtn.classList.remove('active');
+            });
         }
 
         // Prevent default touch behavior on game canvas
@@ -80,17 +114,75 @@ const Input = {
         }
     },
 
+    updateJoystick(touch, base, thumb) {
+        const rect = base.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const maxDist = rect.width / 2 - 10;
+
+        let dx = touch.clientX - centerX;
+        let dy = touch.clientY - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Clamp to max distance
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+
+        // Update joystick values (-1 to 1)
+        this.joystick.x = dx / maxDist;
+        this.joystick.y = dy / maxDist;
+
+        // Move thumb visual
+        thumb.style.transform = `translate(${dx}px, ${dy}px)`;
+    },
+
     isDown(key) {
         return this.keys[key] === true;
     },
 
-    // Movement helpers - check both keyboard and touch
-    get up() { return this.isDown('KeyW') || this.isDown('ArrowUp') || this.touch.up; },
-    get down() { return this.isDown('KeyS') || this.isDown('ArrowDown') || this.touch.down; },
-    get left() { return this.isDown('KeyA') || this.isDown('ArrowLeft') || this.touch.left; },
-    get right() { return this.isDown('KeyD') || this.isDown('ArrowRight') || this.touch.right; },
+    // Movement helpers - check both keyboard and joystick
+    get up() {
+        return this.isDown('KeyW') || this.isDown('ArrowUp') || this.joystick.y < -0.3;
+    },
+    get down() {
+        return this.isDown('KeyS') || this.isDown('ArrowDown') || this.joystick.y > 0.3;
+    },
+    get left() {
+        return this.isDown('KeyA') || this.isDown('ArrowLeft') || this.joystick.x < -0.3;
+    },
+    get right() {
+        return this.isDown('KeyD') || this.isDown('ArrowRight') || this.joystick.x > 0.3;
+    },
     get action() { return this.isDown('Space') || this.touch.action; },
     get escape() { return this.isDown('Escape'); },
+
+    // Get analog joystick values for smooth movement
+    getMovementVector() {
+        let x = 0, y = 0;
+
+        // Keyboard input (digital)
+        if (this.isDown('KeyA') || this.isDown('ArrowLeft')) x -= 1;
+        if (this.isDown('KeyD') || this.isDown('ArrowRight')) x += 1;
+        if (this.isDown('KeyW') || this.isDown('ArrowUp')) y -= 1;
+        if (this.isDown('KeyS') || this.isDown('ArrowDown')) y += 1;
+
+        // Joystick input (analog) - takes priority if active
+        if (this.joystick.active) {
+            x = this.joystick.x;
+            y = this.joystick.y;
+        }
+
+        // Normalize if needed
+        const len = Math.sqrt(x * x + y * y);
+        if (len > 1) {
+            x /= len;
+            y /= len;
+        }
+
+        return { x, y };
+    },
 
     // For single-press detection (action button)
     actionPressed: false,
