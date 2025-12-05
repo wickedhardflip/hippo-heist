@@ -6,7 +6,7 @@ A fun browser-based arcade game where you play as a mischievous hippo stealing b
 
 Simply open `index.html` in any modern web browser - no installation required!
 
-<img width="788" height="580" alt="image" src="https://github.com/user-attachments/assets/6dd2d93f-944b-4524-8d9e-8a29a1be2b5c" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/6dd2d93f-944b-4524-8d9e-8a29a1be2b5c" />
 
 ## Gameplay
 
