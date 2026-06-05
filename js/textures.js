@@ -44,28 +44,48 @@ const Tex = {
         const size = 512;
         const c = this._canvas(size);
         const ctx = c.getContext('2d');
-        // base gradient of greens
+        // natural, slightly desaturated meadow base
         const g = ctx.createLinearGradient(0, 0, size, size);
-        g.addColorStop(0, '#3fa14a');
-        g.addColorStop(0.5, '#4cb85a');
-        g.addColorStop(1, '#379a46');
+        g.addColorStop(0, '#5f8f48');
+        g.addColorStop(0.5, '#6b9a4f');
+        g.addColorStop(1, '#577f43');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, size, size);
-        // darker clumps
-        this._noiseFill(ctx, size, 'rgba(0,0,0,0)', 22, '#2f8a3e', 0.18, 260);
-        // lighter clumps
-        this._noiseFill(ctx, size, 'rgba(0,0,0,0)', 14, '#69d178', 0.16, 320);
-        // tiny blade flecks
-        for (let i = 0; i < 1400; i++) {
-            ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(40,120,55,0.35)' : 'rgba(120,210,130,0.30)';
-            ctx.lineWidth = 1;
+        // large soft patches (wrap by drawing offset copies for seamless tiling)
+        const patch = (col, r, count, alpha) => {
+            ctx.fillStyle = col;
+            for (let i = 0; i < count; i++) {
+                const x = Math.random() * size, y = Math.random() * size;
+                const rr = r * (0.5 + Math.random());
+                for (const [ox, oy] of [[0,0],[size,0],[-size,0],[0,size],[0,-size]]) {
+                    const gr = ctx.createRadialGradient(x+ox, y+oy, 0, x+ox, y+oy, rr);
+                    gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.globalAlpha = alpha; ctx.fillStyle = gr;
+                    ctx.beginPath(); ctx.arc(x+ox, y+oy, rr, 0, Math.PI*2); ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1;
+        };
+        patch('rgba(74,110,56,1)', 70, 14, 0.5);   // deep green
+        patch('rgba(126,150,72,1)', 55, 14, 0.4);  // sun-bleached yellow-green
+        patch('rgba(92,128,60,1)', 40, 18, 0.4);
+        patch('rgba(120,96,58,1)', 28, 8, 0.22);   // faint dirt show-through
+        // fine blade speckle (subtle)
+        for (let i = 0; i < 2600; i++) {
+            const v = Math.random();
+            ctx.fillStyle = v > 0.5 ? 'rgba(60,92,44,0.30)'
+                          : v > 0.2 ? 'rgba(150,168,96,0.22)'
+                                    : 'rgba(40,66,32,0.30)';
             const x = Math.random() * size, y = Math.random() * size;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + (Math.random() - 0.5) * 4, y - 3 - Math.random() * 4);
-            ctx.stroke();
+            ctx.fillRect(x, y, 1.6, 2.6);
         }
-        this.cache.grass = this._toTexture(c, 6);
+        // tiny wildflowers
+        for (let i = 0; i < 26; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? 'rgba(245,236,180,0.9)' : 'rgba(232,232,245,0.85)';
+            const x = Math.random() * size, y = Math.random() * size;
+            ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI*2); ctx.fill();
+        }
+        this.cache.grass = this._toTexture(c, 1);
         return this.cache.grass;
     },
 
@@ -82,7 +102,7 @@ const Tex = {
             const x = Math.random() * size, y = Math.random() * size;
             ctx.fillRect(x, y, 2, 2);
         }
-        this.cache.grassBump = this._toTexture(c, 6, false);
+        this.cache.grassBump = this._toTexture(c, 1, false);
         return this.cache.grassBump;
     },
 

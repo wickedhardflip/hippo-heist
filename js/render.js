@@ -30,11 +30,13 @@ const Render = {
     // camera orbit state
     cam: {
         yaw: Math.PI * 0.15,
-        pitch: 0.95,        // radians from horizontal-ish (higher = more top-down)
-        dist: 34,
+        pitch: 0.82,        // radians; lower = more of the field visible toward the horizon
+        dist: 56,
         targetYaw: Math.PI * 0.15,
-        targetPitch: 0.95,
-        targetDist: 34,
+        targetPitch: 0.82,
+        targetDist: 56,
+        minDist: 22,
+        maxDist: 120,
         focus: new THREE.Vector3(),
         smoothFocus: new THREE.Vector3()
     },
@@ -87,7 +89,7 @@ const Render = {
 
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87b8e0);
-        this.scene.fog = new THREE.Fog(0x9fc4e0, 60, 230);
+        this.scene.fog = new THREE.Fog(0xbcd6e8, 110, 380);
 
         this.worldGroup = new THREE.Group();
         this.entityGroup = new THREE.Group();
@@ -254,35 +256,40 @@ const Render = {
         const pos = geo.attributes.position;
         const colors = [];
         const halfW = w / 2, halfH = h / 2;
-        const cGrass = new THREE.Color(0x4a9e4f);
-        const cRock = new THREE.Color(0x6f7176);
+        const cGrass = new THREE.Color(0x5c8048);
+        const cRock = new THREE.Color(0x726b63);
         const cSnow = new THREE.Color(0xeef3fb);
-        const cDirt = new THREE.Color(0x6f5230);
+        const cDirt = new THREE.Color(0x6a5236);
+        const meadowBand = 26; // width of lush green meadow ringing the play area
         for (let i = 0; i < pos.count; i++) {
             const x = pos.getX(i), z = pos.getZ(i);
             // distance outside the flat play rectangle
-            const dx = Math.max(0, Math.abs(x) - halfW * 1.05);
-            const dz = Math.max(0, Math.abs(z) - halfH * 1.05);
+            const dx = Math.max(0, Math.abs(x) - halfW * 1.02);
+            const dz = Math.max(0, Math.abs(z) - halfH * 1.02);
             const d = Math.sqrt(dx * dx + dz * dz);
+            const n = this.fbm(x * 0.045 + 10, z * 0.045 + 10);
+            const n2 = this.fbm(x * 0.13, z * 0.13);
             let y;
             if (d <= 0.001) {
-                y = -3.2; // hidden bowl floor beneath water
+                y = -3.5; // hidden bowl floor beneath the water
+            } else if (d < meadowBand) {
+                // gently rolling green meadow just outside the water
+                const k = d / meadowBand;
+                y = -0.15 + k * 0.6 + n2 * 1.1 * k;
             } else {
-                const ramp = Math.pow(d / (span * 0.32), 1.35);
-                const n = this.fbm(x * 0.05 + 10, z * 0.05 + 10);
-                const n2 = this.fbm(x * 0.13, z * 0.13);
-                y = -3.2 + ramp * (55 + n * 60) + n2 * 6 - 2;
+                // rise into mountains
+                const ramp = Math.pow((d - meadowBand) / (span * 0.30), 1.4);
+                y = 0.5 + ramp * (60 + n * 70) + n2 * 7;
             }
             pos.setY(i, y);
-            // color by height
+            // color by height: green valley floor -> rock -> snow
             const c = new THREE.Color();
-            if (y < -1) c.copy(cDirt);
-            else if (y < 8) c.copy(cGrass).lerp(cDirt, Math.min(1, (y) / 8 * 0.3));
-            else if (y < 34) c.copy(cGrass).lerp(cRock, (y - 8) / 26);
-            else c.copy(cRock).lerp(cSnow, Math.min(1, (y - 34) / 22));
-            // add slight noise tint
-            const t = this.hash(Math.floor(x), Math.floor(z)) * 0.08 - 0.04;
-            c.offsetHSL(0, 0, t);
+            if (y < -0.5) c.copy(cDirt);
+            else if (y < 7) c.copy(cGrass);
+            else if (y < 32) c.copy(cGrass).lerp(cRock, (y - 7) / 25);
+            else c.copy(cRock).lerp(cSnow, Math.min(1, (y - 32) / 24));
+            // subtle large-scale tint variation
+            c.offsetHSL((n - 0.5) * 0.03, (n2 - 0.5) * 0.05, (this.hash(Math.floor(x * 0.3), Math.floor(z * 0.3)) - 0.5) * 0.06);
             colors.push(c.r, c.g, c.b);
         }
         geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
@@ -320,43 +327,58 @@ const Render = {
             transparent: true,
             uniforms: {
                 uTime: { value: 0 },
-                uDeep: { value: new THREE.Color(0x14618f) },
-                uShallow: { value: new THREE.Color(0x3aa6d6) },
-                uFoam: { value: new THREE.Color(0xbfe9ff) },
+                uDeep: { value: new THREE.Color(0x14586f) },
+                uShallow: { value: new THREE.Color(0x39b0cf) },
+                uSkyTop: { value: new THREE.Color(0x3b78b0) },
+                uSkyHorizon: { value: new THREE.Color(0xbfe0f2) },
                 uSun: { value: new THREE.Vector3(40, 70, 30).normalize() }
             },
             vertexShader: `
-                uniform float uTime; varying vec3 vN; varying vec3 vW; varying float vWave;
+                uniform float uTime; varying vec3 vN; varying vec3 vW;
+                // gentle multi-octave ripples; analytic normal from partial derivatives
+                float h(vec2 p){
+                    return sin(p.x*0.5 + uTime*0.9)*0.05
+                         + cos(p.y*0.42 - uTime*0.7)*0.05
+                         + sin((p.x*0.9+p.y*0.7) + uTime*1.3)*0.025;
+                }
                 void main(){
                     vec3 p = position;
-                    float w1 = sin(p.x*0.6 + uTime*1.6)*0.12;
-                    float w2 = cos(p.z*0.5 - uTime*1.2)*0.12;
-                    float w3 = sin((p.x+p.z)*0.35 + uTime*0.9)*0.08;
-                    p.y += w1+w2+w3; vWave = w1+w2+w3;
-                    vec3 tx = normalize(vec3(1.0,(cos(p.x*0.6+uTime*1.6)*0.6),0.0));
-                    vec3 tz = normalize(vec3(0.0,(-sin(p.z*0.5-uTime*1.2)*0.5),1.0));
-                    vN = normalize(cross(tz,tx));
+                    float e = 0.35;
+                    float hC = h(p.xz);
+                    float hX = h(p.xz + vec2(e,0.0));
+                    float hZ = h(p.xz + vec2(0.0,e));
+                    p.y += hC;
+                    vec3 dx = vec3(e, hX-hC, 0.0);
+                    vec3 dz = vec3(0.0, hZ-hC, e);
+                    vN = normalize(cross(dz, dx));
                     vec4 wp = modelMatrix*vec4(p,1.0); vW = wp.xyz;
                     gl_Position = projectionMatrix*viewMatrix*wp;
                 }`,
             fragmentShader: `
-                uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uFoam; uniform vec3 uSun; uniform float uTime;
-                varying vec3 vN; varying vec3 vW; varying float vWave;
+                uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSkyTop; uniform vec3 uSkyHorizon; uniform vec3 uSun; uniform float uTime;
+                varying vec3 vN; varying vec3 vW;
                 void main(){
                     vec3 viewDir = normalize(cameraPosition - vW);
-                    float fres = pow(1.0 - max(dot(viewDir, vN),0.0), 2.5);
-                    vec3 col = mix(uDeep, uShallow, clamp(vWave*3.0+0.5,0.0,1.0));
-                    col = mix(col, vec3(0.55,0.78,0.92), fres*0.7);
-                    vec3 h = normalize(uSun + viewDir);
-                    float spec = pow(max(dot(vN,h),0.0), 60.0);
-                    col += spec*0.6;
-                    float foam = smoothstep(0.18,0.26,vWave);
-                    col = mix(col, uFoam, foam*0.4);
-                    gl_FragColor = vec4(col, 0.9);
+                    vec3 N = normalize(vN);
+                    // base depth color, deeper when viewed steeply
+                    float depthMix = clamp(dot(viewDir, vec3(0.0,1.0,0.0)), 0.0, 1.0);
+                    vec3 base = mix(uDeep, uShallow, depthMix*0.7);
+                    // sky reflection via reflected ray elevation
+                    vec3 R = reflect(-viewDir, N);
+                    float sky = clamp(R.y*0.5+0.5, 0.0, 1.0);
+                    vec3 skyCol = mix(uSkyHorizon, uSkyTop, sky);
+                    float fres = pow(1.0 - max(dot(viewDir, N),0.0), 4.0);
+                    vec3 col = mix(base, skyCol, clamp(fres*0.9+0.05,0.0,1.0));
+                    // crisp sun glint
+                    vec3 hVec = normalize(uSun + viewDir);
+                    float spec = pow(max(dot(N,hVec),0.0), 220.0);
+                    col += spec*0.9;
+                    float alpha = mix(0.80, 0.97, fres);
+                    gl_FragColor = vec4(col, alpha);
                 }`
         });
         const water = new THREE.Mesh(geo, this.waterMat);
-        water.position.y = -0.45;
+        water.position.y = -0.4;
         water.renderOrder = 1;
         this.worldGroup.add(water);
     },
@@ -366,12 +388,19 @@ const Render = {
         const verts = [], norms = [], uvs = [], cols3 = [];
         const top = 0, bankBottom = -1.1;
         const isGrass = (c, r) => (level.map[r] && level.map[r][c] === 'grass');
-        const cg = new THREE.Color(0x4cb85a);
+        const cg = new THREE.Color(0xf2f4e9);   // near-neutral: let the grass map show through
+        const tmpU = new THREE.Vector3(), tmpV = new THREE.Vector3(), nrm = new THREE.Vector3();
         const pushQuad = (a, b, c, d, color, uvScale) => {
-            // two triangles a-b-c, a-c-d
+            // one consistent normal per quad -> smooth, facet-free shading across tiles
+            tmpU.subVectors(b, a); tmpV.subVectors(c, a);
+            nrm.crossVectors(tmpU, tmpV).normalize();
+            if (nrm.y < 0) nrm.multiplyScalar(-1); // keep tops/normals pointing up & banks outward-up
             for (const [p, q, s] of [[a, b, c], [a, c, d]]) {
                 verts.push(p.x, p.y, p.z, q.x, q.y, q.z, s.x, s.y, s.z);
-                for (let k = 0; k < 3; k++) { cols3.push(color.r, color.g, color.b); }
+                for (let k = 0; k < 3; k++) {
+                    cols3.push(color.r, color.g, color.b);
+                    norms.push(nrm.x, nrm.y, nrm.z);
+                }
             }
             // uvs based on world xz
             for (const p of [a, b, c, a, c, d]) uvs.push(p.x * uvScale, p.z * uvScale);
@@ -388,20 +417,20 @@ const Render = {
                 const B = new THREE.Vector3(x1, top + bump(c + 1, r), z0);
                 const C = new THREE.Vector3(x1, top + bump(c + 1, r + 1), z1);
                 const D = new THREE.Vector3(x0, top + bump(c, r + 1), z1);
-                pushQuad(A, B, C, D, cg, 0.5);
+                pushQuad(A, B, C, D, cg, 0.22);
                 // banks where neighbor is not grass
-                const dirt = new THREE.Color(0x6f5230);
-                if (!isGrass(c, r - 1)) pushQuad(new THREE.Vector3(x0, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z0), B, A, dirt, 0.4);
-                if (!isGrass(c, r + 1)) pushQuad(new THREE.Vector3(x1, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z1), D, C, dirt, 0.4);
-                if (!isGrass(c - 1, r)) pushQuad(new THREE.Vector3(x0, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z0), A, D, dirt, 0.4);
-                if (!isGrass(c + 1, r)) pushQuad(new THREE.Vector3(x1, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z1), C, B, dirt, 0.4);
+                const dirt = new THREE.Color(0x735237);
+                if (!isGrass(c, r - 1)) pushQuad(new THREE.Vector3(x0, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z0), B, A, dirt, 0.18);
+                if (!isGrass(c, r + 1)) pushQuad(new THREE.Vector3(x1, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z1), D, C, dirt, 0.18);
+                if (!isGrass(c - 1, r)) pushQuad(new THREE.Vector3(x0, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z0), A, D, dirt, 0.18);
+                if (!isGrass(c + 1, r)) pushQuad(new THREE.Vector3(x1, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z1), C, B, dirt, 0.18);
             }
         }
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geo.setAttribute('color', new THREE.Float32BufferAttribute(cols3, 3));
-        geo.computeVertexNormals();
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
         const mat = new THREE.MeshStandardMaterial({
             map: Tex.grass(), bumpMap: Tex.grassBump(), bumpScale: 0.4,
             vertexColors: true, roughness: 0.92, metalness: 0,
@@ -455,7 +484,7 @@ const Render = {
         });
         el.addEventListener('wheel', (e) => {
             e.preventDefault();
-            this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + Math.sign(e.deltaY) * 2.5, 14, 70);
+            this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + Math.sign(e.deltaY) * 4, this.cam.minDist, this.cam.maxDist);
         }, { passive: false });
         // touch drag / pinch
         let pinchD = 0;
@@ -471,7 +500,7 @@ const Render = {
                 this.autoOrbit = false;
             } else if (e.touches.length === 2) {
                 const d = this.touchDist(e);
-                this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - (d - pinchD) * 0.05, 14, 70);
+                this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - (d - pinchD) * 0.08, this.cam.minDist, this.cam.maxDist);
                 pinchD = d;
             }
         }, { passive: true });
@@ -487,8 +516,8 @@ const Render = {
         const rot = 0.0022 * dt;
         if (Input.isDown('KeyQ')) { this.cam.targetYaw += rot; this.autoOrbit = false; }
         if (Input.isDown('KeyE')) { this.cam.targetYaw -= rot; this.autoOrbit = false; }
-        if (Input.isDown('KeyR')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - 0.06 * dt, 14, 70); }
-        if (Input.isDown('KeyF')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + 0.06 * dt, 14, 70); }
+        if (Input.isDown('KeyR')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - 0.08 * dt, this.cam.minDist, this.cam.maxDist); }
+        if (Input.isDown('KeyF')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + 0.08 * dt, this.cam.minDist, this.cam.maxDist); }
     },
 
     getCameraYaw() { return this.cam.yaw; },
@@ -740,7 +769,7 @@ const Render = {
         const w = cont.clientWidth, h = cont.clientHeight;
         this.renderer.setSize(w, h, false);
         if (!this.camera) {
-            this.camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 600);
+            this.camera = new THREE.PerspectiveCamera(55, w / h, 0.5, 700);
         } else {
             this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
