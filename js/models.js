@@ -109,6 +109,16 @@ const Models = {
             inner.position.set(sx, 1.15, -0.05);
             head.add(inner);
         }
+        // mouth seam + little tusks for character
+        const mouth = this.box(1.6, 0.12, 0.9, this.mat(0x3a3560, { roughness: 0.8 }));
+        mouth.position.set(0, -0.62, 1.0);
+        head.add(mouth);
+        const tuskMat = this.mat(0xfdf6e3, { roughness: 0.4 });
+        for (const sx of [-0.5, 0.5]) {
+            const tusk = this.cone(0.13, 0.34, tuskMat, 8);
+            tusk.position.set(sx, -0.42, 1.55);
+            head.add(tusk);
+        }
         g.add(head);
         parts.head = head;
 
@@ -125,6 +135,13 @@ const Models = {
             foot.scale.set(1, 0.6, 1.1);
             foot.position.y = -1.15;
             leg.add(foot);
+            // toenails
+            const nailMat = this.mat(0xe9e2cf, { roughness: 0.4 });
+            for (const tx of [-0.28, 0, 0.28]) {
+                const nail = this.sphere(0.12, nailMat, 6, 5);
+                nail.position.set(tx, -1.2, 0.45);
+                leg.add(nail);
+            }
             g.add(leg);
             parts.legs.push(leg);
         }
@@ -371,34 +388,37 @@ const Models = {
         node.add(crown);
         crown.position.y = 1.0;
 
-        // big banana/palm fronds - arching UP and outward
+        // banana/palm fronds - two arching rings for a fuller canopy
         parts.fronds = [];
         const frondGeo = new THREE.SphereGeometry(1.0, 8, 6);
-        for (let i = 0; i < 7; i++) {
-            const a = (i / 7) * Math.PI * 2;
+        const makeFrond = (a, lift, len, droopLen, mat) => {
             const frond = new THREE.Group();
-            // each frond = an elongated blade tilted up at the base, drooping at the tip
-            const blade = new THREE.Mesh(frondGeo, i % 2 ? leafMat2 : leafMat);
+            const blade = new THREE.Mesh(frondGeo, mat);
             blade.castShadow = true;
-            blade.scale.set(0.55, 0.2, 2.6);   // long in local +Z
-            blade.position.z = 1.7;
+            blade.scale.set(0.5, 0.18, len);
+            blade.position.z = len * 0.65;
             frond.add(blade);
-            // tip droop
             const tip = new THREE.Mesh(frondGeo, leafMat);
             tip.castShadow = true;
-            tip.scale.set(0.4, 0.16, 1.2);
-            tip.position.set(0, -0.5, 3.2);
+            tip.scale.set(0.36, 0.14, droopLen);
+            tip.position.set(0, -0.5, len * 1.25);
             frond.add(tip);
             frond.rotation.y = a;
-            frond.rotation.x = -0.7;            // lift the base upward (palm crown)
+            frond.rotation.x = lift;
             frond.position.y = 0.6;
             crown.add(frond);
             parts.fronds.push(frond);
+        };
+        for (let i = 0; i < 9; i++) {           // upper ring - reach up & out
+            makeFrond((i / 9) * Math.PI * 2, -0.85, 2.7, 1.2, i % 2 ? leafMat2 : leafMat);
+        }
+        for (let i = 0; i < 6; i++) {           // lower ring - droop down
+            makeFrond((i / 6) * Math.PI * 2 + 0.3, -0.25, 2.2, 1.0, i % 2 ? leafMat : leafMat2);
         }
         // central crown ball
-        const tuft = this.sphere(0.9, leafMat, 12, 10);
-        tuft.scale.set(1, 0.8, 1);
-        tuft.position.y = 0.7;
+        const tuft = this.sphere(0.95, leafMat, 12, 10);
+        tuft.scale.set(1, 0.85, 1);
+        tuft.position.y = 0.8;
         crown.add(tuft);
 
         // banana bunch (toggle via setBananas)
@@ -470,11 +490,19 @@ const Models = {
     // bush / rock scatter for decoration
     bush() {
         const g = new THREE.Group();
-        const m = this.mat(0x2f8a3e, { roughness: 0.9, flat: true });
-        for (let i = 0; i < 3; i++) {
-            const s = this.sphere(0.6 + Math.random() * 0.4, m, 8, 6);
-            s.position.set((Math.random() - 0.5) * 0.8, 0.4 + Math.random() * 0.2, (Math.random() - 0.5) * 0.8);
+        const m = this.mat(0x35702f, { roughness: 0.95 });
+        const m2 = this.mat(0x47883a, { roughness: 0.95 });
+        for (let i = 0; i < 5; i++) {
+            const s = this.sphere(0.55 + Math.random() * 0.45, i % 2 ? m2 : m, 10, 8);
+            s.position.set((Math.random() - 0.5) * 1.1, 0.45 + Math.random() * 0.35, (Math.random() - 0.5) * 1.1);
             g.add(s);
+        }
+        // a few berries
+        const berry = this.mat(0xc0392b, { roughness: 0.5 });
+        for (let i = 0; i < 4; i++) {
+            const b = this.sphere(0.12, berry, 6, 5);
+            b.position.set((Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 0.4, (Math.random() - 0.5) * 1.2);
+            g.add(b);
         }
         g.userData.kind = 'bush';
         return g;
