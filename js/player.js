@@ -42,20 +42,24 @@ const Player = {
             this.actionCooldown -= dt;
         }
 
-        // Handle movement
+        // Handle movement (camera-relative: "forward" follows the orbiting camera)
         let dx = 0;
         let dy = 0;
 
-        if (Input.up) dy -= 1;
-        if (Input.down) dy += 1;
-        if (Input.left) dx -= 1;
-        if (Input.right) dx += 1;
+        let fwd = 0, str = 0;
+        if (Input.up) fwd += 1;
+        if (Input.down) fwd -= 1;
+        if (Input.right) str += 1;
+        if (Input.left) str -= 1;
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
+        if (fwd !== 0 || str !== 0) {
+            const yaw = (typeof Render !== 'undefined' && Render.getCameraYaw) ? Render.getCameraYaw() : 0;
+            const sin = Math.sin(yaw), cos = Math.cos(yaw);
+            // ground forward (into the screen) = (-sin, -cos); screen-right = (cos, -sin)
+            dx = (-sin) * fwd + (cos) * str;
+            dy = (-cos) * fwd + (-sin) * str;
             const len = Math.sqrt(dx * dx + dy * dy);
-            dx /= len;
-            dy /= len;
+            if (len > 0) { dx /= len; dy /= len; }
         }
 
         // Update facing direction
