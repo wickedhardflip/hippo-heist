@@ -1,888 +1,877 @@
-// Rendering system for Hippo Heist - Modern pixel graphics with gradients
+// 3D rendering engine for Hippo Heist (Three.js / WebGL).
+// Replaces the original 2D canvas renderer. Gameplay logic still runs in 2D
+// world-pixel space; this layer maps it into a 3D angled top-down world with an
+// orbiting camera, a mountain-ringed valley, dynamic lighting, shadows and water.
 const Render = {
-    canvas: null,
-    ctx: null,
-    camera: { x: 0, y: 0 },
     TILE_SIZE: 32,
+    S: 0.1,            // world units per game pixel (32px tile -> 3.2 units)
+    canvas: null,
+    renderer: null,
+    scene: null,
+    camera: null,
+    sun: null,
+    clock: null,
 
-    // Particle system
+    // scene groups
+    worldGroup: null,      // per-level static geometry (terrain/water/trees/cage)
+    entityGroup: null,     // hippo/leopard/farmers
+    fxGroup: null,         // particles & floating text
+
+    // entity meshes
+    hippo: null,
+    leopard: null,
+    cageMesh: null,
+    farmerMeshes: [],      // index-aligned with Farmers.list
+    treeMeshes: [],        // index-aligned with Level.trees
+    carriedBananas: [],
+
+    waterMat: null,
+
+    // camera orbit state
+    cam: {
+        yaw: Math.PI * 0.15,
+        pitch: 0.95,        // radians from horizontal-ish (higher = more top-down)
+        dist: 34,
+        targetYaw: Math.PI * 0.15,
+        targetPitch: 0.95,
+        targetDist: 34,
+        focus: new THREE.Vector3(),
+        smoothFocus: new THREE.Vector3()
+    },
+    autoOrbit: true,        // spin slowly on menus
+
+    shake: { intensity: 0, duration: 0, x: 0, y: 0, z: 0 },
     particles: [],
-
-    // Screen shake
-    shake: { x: 0, y: 0, intensity: 0, duration: 0 },
-
-    // Floating text
     floatingTexts: [],
 
-    // Color palette - modern cool colors with warm accents
-    colors: {
-        water: '#3498db',
-        waterDeep: '#2980b9',
-        waterLight: '#5dade2',
-        waterHighlight: '#85c1e9',
-        grass: '#2ecc71',
-        grassLight: '#58d68d',
-        grassDark: '#27ae60',
-        grassAccent: '#1e8449',
-        hippo: '#8e9aeb',
-        hippoLight: '#a8b4f0',
-        hippoShadow: '#6a7bd4',
-        hippoSubmerged: '#5c6bc0',
-        farmer: '#e74c3c',
-        farmerLight: '#ec7063',
-        farmerShadow: '#c0392b',
-        farmerSkin: '#f5cba7',
-        leopard: '#f39c12',
-        leopardLight: '#f5b041',
-        leopardSpots: '#d35400',
-        banana: '#f1c40f',
-        bananaLight: '#f4d03f',
-        bananaShadow: '#d4ac0d',
-        tree: '#27ae60',
-        treeLight: '#2ecc71',
-        treeDark: '#1e8449',
-        trunk: '#8b6914',
-        trunkDark: '#6b4423',
-        cage: '#95a5a6',
-        cageDark: '#7f8c8d'
+    levelBuilt: false,
+
+    // ---- pseudo-noise (deterministic) for terrain ----
+    hash(x, y) {
+        const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+        return s - Math.floor(s);
+    },
+    noise(x, y) {
+        const xi = Math.floor(x), yi = Math.floor(y);
+        const xf = x - xi, yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+        const a = this.hash(xi, yi), b = this.hash(xi + 1, yi);
+        const c = this.hash(xi, yi + 1), d = this.hash(xi + 1, yi + 1);
+        return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    },
+    fbm(x, y) {
+        let t = 0, amp = 0.5, f = 1;
+        for (let i = 0; i < 4; i++) { t += this.noise(x * f, y * f) * amp; amp *= 0.5; f *= 2; }
+        return t;
     },
 
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+        this.clock = new THREE.Clock();
 
-        // Set canvas size based on container
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
+        try {
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });
+        } catch (err) {
+            console.error('WebGL init failed', err);
+            const el = document.getElementById('webgl-error');
+            if (el) el.classList.remove('hidden');
+            this.failed = true;
+            return;
+        }
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 0.92;
 
-        this.ctx.imageSmoothingEnabled = false;
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x87b8e0);
+        this.scene.fog = new THREE.Fog(0x9fc4e0, 60, 230);
 
-        // Polyfill for roundRect if not supported
-        if (!this.ctx.roundRect) {
-            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-                if (typeof r === 'number') {
-                    r = { tl: r, tr: r, br: r, bl: r };
-                }
-                this.beginPath();
-                this.moveTo(x + r.tl, y);
-                this.lineTo(x + w - r.tr, y);
-                this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
-                this.lineTo(x + w, y + h - r.br);
-                this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
-                this.lineTo(x + r.bl, y + h);
-                this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
-                this.lineTo(x, y + r.tl);
-                this.quadraticCurveTo(x, y, x + r.tl, y);
-                this.closePath();
-            };
+        this.worldGroup = new THREE.Group();
+        this.entityGroup = new THREE.Group();
+        this.fxGroup = new THREE.Group();
+        this.scene.add(this.worldGroup, this.entityGroup, this.fxGroup);
+
+        this.buildLighting();
+        this.buildSky();
+        this.buildFX();
+        this.initControls();
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        // gentle idle backdrop until a level loads
+        this.cam.focus.set(0, 0, 0);
+        this.cam.smoothFocus.set(0, 0, 0);
+    },
+
+    buildLighting() {
+        const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x4a6b3a, 0.5);
+        this.scene.add(hemi);
+
+        const sun = new THREE.DirectionalLight(0xfff2d6, 1.05);
+        sun.position.set(40, 70, 30);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.near = 1;
+        sun.shadow.camera.far = 220;
+        const d = 70;
+        sun.shadow.camera.left = -d; sun.shadow.camera.right = d;
+        sun.shadow.camera.top = d; sun.shadow.camera.bottom = -d;
+        sun.shadow.bias = -0.0004;
+        sun.shadow.normalBias = 0.02;
+        this.scene.add(sun);
+        this.scene.add(sun.target);
+        this.sun = sun;
+
+        const fill = new THREE.DirectionalLight(0x88aaff, 0.2);
+        fill.position.set(-30, 25, -20);
+        this.scene.add(fill);
+    },
+
+    buildSky() {
+        // gradient sky dome
+        const skyGeo = new THREE.SphereGeometry(400, 32, 16);
+        const skyMat = new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            uniforms: {
+                top: { value: new THREE.Color(0x2e6fb0) },
+                mid: { value: new THREE.Color(0x87b8e0) },
+                bot: { value: new THREE.Color(0xdceefb) }
+            },
+            vertexShader: `varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+            fragmentShader: `varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bot;
+                void main(){ float h = normalize(vP).y;
+                    vec3 c = h>0.0 ? mix(mid, top, pow(h,0.6)) : mix(mid, bot, pow(-h,0.5));
+                    gl_FragColor = vec4(c,1.0);} `
+        });
+        this.scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+        // soft clouds (billboards)
+        const cloudTex = this.makeCloudTexture();
+        const cloudMat = new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.85, depthWrite: false });
+        for (let i = 0; i < 14; i++) {
+            const s = new THREE.Sprite(cloudMat);
+            const a = Math.random() * Math.PI * 2;
+            const r = 120 + Math.random() * 120;
+            s.position.set(Math.cos(a) * r, 45 + Math.random() * 45, Math.sin(a) * r);
+            const sc = 30 + Math.random() * 50;
+            s.scale.set(sc, sc * 0.55, 1);
+            this.scene.add(s);
         }
     },
 
-    resizeCanvas() {
-        const container = document.getElementById('game-container');
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
+    makeCloudTexture() {
+        const c = document.createElement('canvas'); c.width = c.height = 128;
+        const ctx = c.getContext('2d');
+        for (let i = 0; i < 18; i++) {
+            const x = 64 + (Math.random() - 0.5) * 70, y = 64 + (Math.random() - 0.5) * 40;
+            const r = 18 + Math.random() * 26;
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(255,255,255,0.9)');
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        }
+        const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+    },
 
-        // Maintain 4:3 aspect ratio, fit within container
-        const targetRatio = 4 / 3;
-        const containerRatio = containerWidth / containerHeight;
+    // ---------------- coordinate mapping ----------------
+    // game pixel (px,py) -> 3D ground position. (origin centered on map)
+    toWorld(px, py) {
+        return new THREE.Vector3(
+            (px - this.mapPxW / 2) * this.S,
+            0,
+            (py - this.mapPxH / 2) * this.S
+        );
+    },
 
-        let width, height;
-        if (containerRatio > targetRatio) {
-            // Container is wider than 4:3
-            height = containerHeight;
-            width = height * targetRatio;
-        } else {
-            // Container is taller than 4:3
-            width = containerWidth;
-            height = width / targetRatio;
+    // ---------------- build a level ----------------
+    buildLevel(level) {
+        // clear previous
+        this.disposeGroup(this.worldGroup);
+        this.disposeGroup(this.entityGroup);
+        this.farmerMeshes = [];
+        this.treeMeshes = [];
+        this.carriedBananas = [];
+        this.hippo = this.leopard = this.cageMesh = null;
+
+        this.mapPxW = level.width;
+        this.mapPxH = level.height;
+        const cols = level.map[0].length, rows = level.map.length;
+        const T = this.TILE_SIZE * this.S;
+
+        this.buildValley(cols, rows, T);
+        this.buildWater(cols, rows, T);
+        this.buildGround(level, cols, rows, T);
+        this.scatterDecor(level, cols, rows, T);
+
+        // trees
+        for (let i = 0; i < level.trees.length; i++) {
+            const tr = level.trees[i];
+            const m = Models.tree(Math.floor(tr.x + tr.y));
+            const p = this.toWorld(tr.x + 20, tr.y + 24);
+            m.position.set(p.x, this.groundHeightAt(tr.x + 20, tr.y + 24), p.z);
+            Models.setTreeBananas(m, tr.hasBananas);
+            this.worldGroup.add(m);
+            this.treeMeshes.push(m);
         }
 
-        this.canvas.width = Math.floor(width);
-        this.canvas.height = Math.floor(height);
-        this.canvas.style.width = width + 'px';
-        this.canvas.style.height = height + 'px';
-    },
+        // hippo
+        this.hippo = Models.hippo();
+        this.entityGroup.add(this.hippo);
 
-    clear() {
-        // Modern gradient background
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-        gradient.addColorStop(0, '#1a2a4a');
-        gradient.addColorStop(1, '#16213e');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    },
-
-    updateCamera(target, mapWidth, mapHeight) {
-        this.camera.x = target.x - this.canvas.width / 2;
-        this.camera.y = target.y - this.canvas.height / 2;
-        this.camera.x = Math.max(0, Math.min(this.camera.x, mapWidth - this.canvas.width));
-        this.camera.y = Math.max(0, Math.min(this.camera.y, mapHeight - this.canvas.height));
-    },
-
-    toScreen(x, y) {
-        return { x: x - this.camera.x, y: y - this.camera.y };
-    },
-
-    // Create gradient for blocks
-    createGradient(x, y, height, colorTop, colorBottom) {
-        const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
-        gradient.addColorStop(0, colorTop);
-        gradient.addColorStop(1, colorBottom);
-        return gradient;
-    },
-
-    // Draw water tile - smooth natural look
-    drawWater(x, y, time) {
-        const pos = this.toScreen(x, y);
-
-        // Solid water base color
-        this.ctx.fillStyle = '#2980b9';
-        this.ctx.fillRect(pos.x, pos.y, this.TILE_SIZE, this.TILE_SIZE);
-
-        // Subtle animated shimmer using sine waves
-        const shimmer1 = Math.sin(time / 800 + x / 60 + y / 80) * 0.15 + 0.1;
-        const shimmer2 = Math.sin(time / 600 + x / 50 - y / 70) * 0.1;
-
-        // Light caustic-like effect
-        this.ctx.fillStyle = `rgba(133, 193, 233, ${shimmer1})`;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 10 + Math.sin(time/700 + x) * 3, pos.y + 12, 6, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        this.ctx.fillStyle = `rgba(174, 214, 241, ${shimmer2 + 0.15})`;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 24 + Math.cos(time/900 + y) * 2, pos.y + 22, 5, 0, Math.PI * 2);
-        this.ctx.fill();
-    },
-
-    // Draw grass tile - natural seamless look
-    drawGrass(x, y) {
-        const pos = this.toScreen(x, y);
-
-        // Use position-based variation for natural look (pseudo-random based on tile position)
-        const seed = (x * 13 + y * 7) % 100;
-        const variation = seed / 100;
-
-        // Base grass color with slight variation
-        const r = 46 + Math.floor(variation * 20);
-        const g = 204 - Math.floor(variation * 30);
-        const b = 113 - Math.floor(variation * 20);
-        this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        this.ctx.fillRect(pos.x, pos.y, this.TILE_SIZE, this.TILE_SIZE);
-
-        // Subtle texture dots (sparse, natural)
-        this.ctx.globalAlpha = 0.25;
-        const dotSeed = (x * 17 + y * 23) % 5;
-        if (dotSeed > 2) {
-            this.ctx.fillStyle = '#1e8449';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 8 + (seed % 12), pos.y + 10 + (seed % 8), 2, 0, Math.PI * 2);
-            this.ctx.fill();
+        // leopard
+        this.leopard = Models.leopard();
+        this.entityGroup.add(this.leopard);
+        if (Leopard.isCaged) {
+            this.cageMesh = Models.cage();
+            this.entityGroup.add(this.cageMesh);
         }
-        if (dotSeed < 3) {
-            this.ctx.fillStyle = '#58d68d';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 20 + (seed % 6), pos.y + 22 + (seed % 5), 1.5, 0, Math.PI * 2);
-            this.ctx.fill();
+
+        // farmers
+        for (let i = 0; i < Farmers.list.length; i++) {
+            const fm = Models.farmer();
+            this.entityGroup.add(fm);
+            this.farmerMeshes.push(fm);
         }
-        this.ctx.globalAlpha = 1;
+
+        // place camera focus at player
+        const pc = this.toWorld(Player.x + Player.width / 2, Player.y + Player.height / 2);
+        this.cam.focus.copy(pc);
+        this.cam.smoothFocus.copy(pc);
+        this.autoOrbit = false;
+        this.levelBuilt = true;
     },
 
-    // Draw the hippo with modern styling
-    drawHippo(hippo, time, isGracePeriod = false) {
-        const pos = this.toScreen(hippo.x, hippo.y);
-        const bobOffset = Math.sin(time / 200) * 2;
+    // valley terrain ringing the play area: flat bowl floor rising into mountains
+    buildValley(cols, rows, T) {
+        const w = cols * T, h = rows * T;
+        const span = Math.max(w, h) * 3.2;
+        const seg = 120;
+        const geo = new THREE.PlaneGeometry(span, span, seg, seg);
+        geo.rotateX(-Math.PI / 2);
+        const pos = geo.attributes.position;
+        const colors = [];
+        const halfW = w / 2, halfH = h / 2;
+        const cGrass = new THREE.Color(0x4a9e4f);
+        const cRock = new THREE.Color(0x6f7176);
+        const cSnow = new THREE.Color(0xeef3fb);
+        const cDirt = new THREE.Color(0x6f5230);
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i), z = pos.getZ(i);
+            // distance outside the flat play rectangle
+            const dx = Math.max(0, Math.abs(x) - halfW * 1.05);
+            const dz = Math.max(0, Math.abs(z) - halfH * 1.05);
+            const d = Math.sqrt(dx * dx + dz * dz);
+            let y;
+            if (d <= 0.001) {
+                y = -3.2; // hidden bowl floor beneath water
+            } else {
+                const ramp = Math.pow(d / (span * 0.32), 1.35);
+                const n = this.fbm(x * 0.05 + 10, z * 0.05 + 10);
+                const n2 = this.fbm(x * 0.13, z * 0.13);
+                y = -3.2 + ramp * (55 + n * 60) + n2 * 6 - 2;
+            }
+            pos.setY(i, y);
+            // color by height
+            const c = new THREE.Color();
+            if (y < -1) c.copy(cDirt);
+            else if (y < 8) c.copy(cGrass).lerp(cDirt, Math.min(1, (y) / 8 * 0.3));
+            else if (y < 34) c.copy(cGrass).lerp(cRock, (y - 8) / 26);
+            else c.copy(cRock).lerp(cSnow, Math.min(1, (y - 34) / 22));
+            // add slight noise tint
+            const t = this.hash(Math.floor(x), Math.floor(z)) * 0.08 - 0.04;
+            c.offsetHSL(0, 0, t);
+            colors.push(c.r, c.g, c.b);
+        }
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geo.computeVertexNormals();
+        const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: false });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        mesh.position.y = 0;
+        this.worldGroup.add(mesh);
 
-        // Flash effect during grace period (blink rapidly)
-        if (isGracePeriod) {
-            const flashRate = Math.sin(time / 80); // Fast flashing
-            if (flashRate < 0) {
-                this.ctx.globalAlpha = 0.3; // Semi-transparent during flash
+        // a few big distinct mountain peaks on the ring for silhouette
+        const peakMat = new THREE.MeshStandardMaterial({ vertexColors: false, color: 0x6b6d72, roughness: 1, flatShading: true, map: Tex.rock() });
+        for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2 + 0.3;
+            const r = Math.max(w, h) * (0.95 + Math.random() * 0.25);
+            const ph = 38 + Math.random() * 34;
+            const peak = new THREE.Mesh(new THREE.ConeGeometry(ph * 0.7, ph, 7), peakMat);
+            peak.position.set(Math.cos(a) * r, ph / 2 - 6, Math.sin(a) * r);
+            peak.rotation.y = Math.random();
+            peak.castShadow = true; peak.receiveShadow = true;
+            // snow cap
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(ph * 0.32, ph * 0.34, 7), new THREE.MeshStandardMaterial({ color: 0xf3f7fd, roughness: 0.8, flatShading: true }));
+            cap.position.y = ph * 0.33;
+            peak.add(cap);
+            this.worldGroup.add(peak);
+        }
+    },
+
+    buildWater(cols, rows, T) {
+        const w = cols * T, h = rows * T;
+        const geo = new THREE.PlaneGeometry(w * 1.04, h * 1.04, 60, 60);
+        geo.rotateX(-Math.PI / 2);
+        const normal = Tex.waterNormal();
+        this.waterMat = new THREE.ShaderMaterial({
+            transparent: true,
+            uniforms: {
+                uTime: { value: 0 },
+                uDeep: { value: new THREE.Color(0x14618f) },
+                uShallow: { value: new THREE.Color(0x3aa6d6) },
+                uFoam: { value: new THREE.Color(0xbfe9ff) },
+                uSun: { value: new THREE.Vector3(40, 70, 30).normalize() }
+            },
+            vertexShader: `
+                uniform float uTime; varying vec3 vN; varying vec3 vW; varying float vWave;
+                void main(){
+                    vec3 p = position;
+                    float w1 = sin(p.x*0.6 + uTime*1.6)*0.12;
+                    float w2 = cos(p.z*0.5 - uTime*1.2)*0.12;
+                    float w3 = sin((p.x+p.z)*0.35 + uTime*0.9)*0.08;
+                    p.y += w1+w2+w3; vWave = w1+w2+w3;
+                    vec3 tx = normalize(vec3(1.0,(cos(p.x*0.6+uTime*1.6)*0.6),0.0));
+                    vec3 tz = normalize(vec3(0.0,(-sin(p.z*0.5-uTime*1.2)*0.5),1.0));
+                    vN = normalize(cross(tz,tx));
+                    vec4 wp = modelMatrix*vec4(p,1.0); vW = wp.xyz;
+                    gl_Position = projectionMatrix*viewMatrix*wp;
+                }`,
+            fragmentShader: `
+                uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uFoam; uniform vec3 uSun; uniform float uTime;
+                varying vec3 vN; varying vec3 vW; varying float vWave;
+                void main(){
+                    vec3 viewDir = normalize(cameraPosition - vW);
+                    float fres = pow(1.0 - max(dot(viewDir, vN),0.0), 2.5);
+                    vec3 col = mix(uDeep, uShallow, clamp(vWave*3.0+0.5,0.0,1.0));
+                    col = mix(col, vec3(0.55,0.78,0.92), fres*0.7);
+                    vec3 h = normalize(uSun + viewDir);
+                    float spec = pow(max(dot(vN,h),0.0), 60.0);
+                    col += spec*0.6;
+                    float foam = smoothstep(0.18,0.26,vWave);
+                    col = mix(col, uFoam, foam*0.4);
+                    gl_FragColor = vec4(col, 0.9);
+                }`
+        });
+        const water = new THREE.Mesh(geo, this.waterMat);
+        water.position.y = -0.45;
+        water.renderOrder = 1;
+        this.worldGroup.add(water);
+    },
+
+    // grass islands (only where grass tiles are) with dirt banks down to water
+    buildGround(level, cols, rows, T) {
+        const verts = [], norms = [], uvs = [], cols3 = [];
+        const top = 0, bankBottom = -1.1;
+        const isGrass = (c, r) => (level.map[r] && level.map[r][c] === 'grass');
+        const cg = new THREE.Color(0x4cb85a);
+        const pushQuad = (a, b, c, d, color, uvScale) => {
+            // two triangles a-b-c, a-c-d
+            for (const [p, q, s] of [[a, b, c], [a, c, d]]) {
+                verts.push(p.x, p.y, p.z, q.x, q.y, q.z, s.x, s.y, s.z);
+                for (let k = 0; k < 3; k++) { cols3.push(color.r, color.g, color.b); }
+            }
+            // uvs based on world xz
+            for (const p of [a, b, c, a, c, d]) uvs.push(p.x * uvScale, p.z * uvScale);
+        };
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (!isGrass(c, r)) continue;
+                const x0 = (c * this.TILE_SIZE - this.mapPxW / 2) * this.S;
+                const z0 = (r * this.TILE_SIZE - this.mapPxH / 2) * this.S;
+                const x1 = x0 + T, z1 = z0 + T;
+                // gentle bump on top
+                const bump = (cc, rr) => this.fbm(cc * 0.6, rr * 0.6) * 0.25;
+                const A = new THREE.Vector3(x0, top + bump(c, r), z0);
+                const B = new THREE.Vector3(x1, top + bump(c + 1, r), z0);
+                const C = new THREE.Vector3(x1, top + bump(c + 1, r + 1), z1);
+                const D = new THREE.Vector3(x0, top + bump(c, r + 1), z1);
+                pushQuad(A, B, C, D, cg, 0.5);
+                // banks where neighbor is not grass
+                const dirt = new THREE.Color(0x6f5230);
+                if (!isGrass(c, r - 1)) pushQuad(new THREE.Vector3(x0, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z0), B, A, dirt, 0.4);
+                if (!isGrass(c, r + 1)) pushQuad(new THREE.Vector3(x1, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z1), D, C, dirt, 0.4);
+                if (!isGrass(c - 1, r)) pushQuad(new THREE.Vector3(x0, bankBottom, z1), new THREE.Vector3(x0, bankBottom, z0), A, D, dirt, 0.4);
+                if (!isGrass(c + 1, r)) pushQuad(new THREE.Vector3(x1, bankBottom, z0), new THREE.Vector3(x1, bankBottom, z1), C, B, dirt, 0.4);
             }
         }
-
-        if (hippo.isSubmerged) {
-            // Submerged hippo - only top visible
-            // Water ripple effect
-            this.ctx.strokeStyle = this.colors.waterHighlight;
-            this.ctx.lineWidth = 2;
-            this.ctx.globalAlpha = 0.7;
-            this.ctx.beginPath();
-            this.ctx.ellipse(pos.x + 20, pos.y + 30 + bobOffset, 18 + Math.sin(time / 250) * 4, 6, 0, 0, Math.PI * 2);
-            this.ctx.stroke();
-            this.ctx.globalAlpha = 1;
-
-            // Head peeking out
-            const headGrad = this.ctx.createLinearGradient(pos.x + 8, pos.y + 14, pos.x + 8, pos.y + 28);
-            headGrad.addColorStop(0, this.colors.hippoLight);
-            headGrad.addColorStop(1, this.colors.hippoSubmerged);
-            this.ctx.fillStyle = headGrad;
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 6, pos.y + 14 + bobOffset, 28, 14, 6);
-            this.ctx.fill();
-
-            // Eyes
-            this.ctx.fillStyle = '#fff';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 14, pos.y + 20 + bobOffset, 4, 0, Math.PI * 2);
-            this.ctx.arc(pos.x + 26, pos.y + 20 + bobOffset, 4, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Pupils
-            this.ctx.fillStyle = '#232931';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 15, pos.y + 21 + bobOffset, 2, 0, Math.PI * 2);
-            this.ctx.arc(pos.x + 27, pos.y + 21 + bobOffset, 2, 0, Math.PI * 2);
-            this.ctx.fill();
-        } else {
-            // Full hippo on land
-            // Shadow
-            this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            this.ctx.beginPath();
-            this.ctx.ellipse(pos.x + 20, pos.y + 38, 18, 5, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Body gradient
-            const bodyGrad = this.ctx.createLinearGradient(pos.x, pos.y + 8, pos.x, pos.y + 36);
-            bodyGrad.addColorStop(0, this.colors.hippoLight);
-            bodyGrad.addColorStop(0.5, this.colors.hippo);
-            bodyGrad.addColorStop(1, this.colors.hippoShadow);
-            this.ctx.fillStyle = bodyGrad;
-
-            // Body
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 4, pos.y + 10, 32, 26, 8);
-            this.ctx.fill();
-
-            // Head
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 8, pos.y + 2, 24, 16, 8);
-            this.ctx.fill();
-
-            // Snout
-            this.ctx.fillStyle = this.colors.hippo;
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 12, pos.y + 20, 16, 12, 4);
-            this.ctx.fill();
-
-            // Ears
-            this.ctx.fillStyle = this.colors.hippoShadow;
-            this.ctx.beginPath();
-            this.ctx.ellipse(pos.x + 10, pos.y + 4, 4, 5, 0, 0, Math.PI * 2);
-            this.ctx.ellipse(pos.x + 30, pos.y + 4, 4, 5, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Eyes
-            this.ctx.fillStyle = '#fff';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 14, pos.y + 10, 5, 0, Math.PI * 2);
-            this.ctx.arc(pos.x + 26, pos.y + 10, 5, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Pupils (follow direction)
-            this.ctx.fillStyle = '#232931';
-            const eyeOffsetX = hippo.facingX * 1.5;
-            const eyeOffsetY = hippo.facingY * 1.5;
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 14 + eyeOffsetX, pos.y + 10 + eyeOffsetY, 2.5, 0, Math.PI * 2);
-            this.ctx.arc(pos.x + 26 + eyeOffsetX, pos.y + 10 + eyeOffsetY, 2.5, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Eye shine
-            this.ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x + 12, pos.y + 8, 1.5, 0, Math.PI * 2);
-            this.ctx.arc(pos.x + 24, pos.y + 8, 1.5, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Nostrils
-            this.ctx.fillStyle = this.colors.hippoShadow;
-            this.ctx.beginPath();
-            this.ctx.ellipse(pos.x + 16, pos.y + 26, 2, 2.5, 0, 0, Math.PI * 2);
-            this.ctx.ellipse(pos.x + 24, pos.y + 26, 2, 2.5, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-        }
-
-        // Draw carried bananas
-        if (hippo.bananas > 0) {
-            for (let i = 0; i < hippo.bananas; i++) {
-                this.drawMiniBanana(pos.x + 38 + (i % 3) * 10, pos.y + Math.floor(i / 3) * 12);
-            }
-        }
-
-        // Reset alpha after grace period flashing
-        this.ctx.globalAlpha = 1;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(cols3, 3));
+        geo.computeVertexNormals();
+        const mat = new THREE.MeshStandardMaterial({
+            map: Tex.grass(), bumpMap: Tex.grassBump(), bumpScale: 0.4,
+            vertexColors: true, roughness: 0.92, metalness: 0,
+            side: THREE.DoubleSide   // quads are authored both windings; show + light both faces
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+        this.worldGroup.add(mesh);
     },
 
-    // Small banana icon
-    drawMiniBanana(screenX, screenY) {
-        const grad = this.ctx.createLinearGradient(screenX, screenY, screenX + 8, screenY + 12);
-        grad.addColorStop(0, this.colors.bananaLight);
-        grad.addColorStop(1, this.colors.bananaShadow);
-        this.ctx.fillStyle = grad;
-        this.ctx.beginPath();
-        this.ctx.roundRect(screenX, screenY, 7, 11, 3);
-        this.ctx.fill();
-    },
-
-    // Draw a banana tree
-    drawBananaTree(tree, time) {
-        const pos = this.toScreen(tree.x, tree.y);
-
-        // Shadow
-        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 20, pos.y + 44, 16, 5, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Trunk gradient
-        const trunkGrad = this.ctx.createLinearGradient(pos.x + 14, pos.y, pos.x + 26, pos.y);
-        trunkGrad.addColorStop(0, this.colors.trunk);
-        trunkGrad.addColorStop(0.5, '#a07820');
-        trunkGrad.addColorStop(1, this.colors.trunkDark);
-        this.ctx.fillStyle = trunkGrad;
-        this.ctx.fillRect(pos.x + 14, pos.y + 20, 12, 24);
-
-        // Leaves gradient
-        const leafGrad = this.ctx.createRadialGradient(pos.x + 20, pos.y + 12, 0, pos.x + 20, pos.y + 12, 24);
-        leafGrad.addColorStop(0, this.colors.treeLight);
-        leafGrad.addColorStop(0.6, this.colors.tree);
-        leafGrad.addColorStop(1, this.colors.treeDark);
-        this.ctx.fillStyle = leafGrad;
-
-        // Main leaf cluster
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 20, pos.y + 12, 18, 14, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Side leaves
-        this.ctx.fillStyle = this.colors.tree;
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 4, pos.y + 10, 8, 12, -0.3, 0, Math.PI * 2);
-        this.ctx.ellipse(pos.x + 36, pos.y + 10, 8, 12, 0.3, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Bananas on tree
-        if (tree.hasBananas) {
-            const sway = Math.sin(time / 400 + tree.x) * 2;
-
-            // Banana bunch gradient
-            const bananaGrad = this.ctx.createLinearGradient(0, pos.y + 14, 0, pos.y + 28);
-            bananaGrad.addColorStop(0, this.colors.bananaLight);
-            bananaGrad.addColorStop(1, this.colors.bananaShadow);
-            this.ctx.fillStyle = bananaGrad;
-
-            // Left bunch
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 2 + sway, pos.y + 14, 8, 14, 3);
-            this.ctx.fill();
-
-            // Right bunch
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 30 - sway, pos.y + 12, 8, 14, 3);
-            this.ctx.fill();
-
-            // Center bunch
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x + 15, pos.y + 18 + sway * 0.5, 10, 12, 3);
-            this.ctx.fill();
-        }
-    },
-
-    // Draw farmer enemy
-    drawFarmer(farmer, time) {
-        const pos = this.toScreen(farmer.x, farmer.y);
-        const walkBob = farmer.isChasing ? Math.sin(time / 80) * 4 : Math.sin(time / 300) * 1;
-
-        // Shadow
-        this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 16, pos.y + 40, 12, 4, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Legs
-        this.ctx.fillStyle = '#34495e';
-        this.ctx.fillRect(pos.x + 8, pos.y + 28 + walkBob, 6, 12);
-        this.ctx.fillRect(pos.x + 18, pos.y + 28 - walkBob, 6, 12);
-
-        // Body gradient
-        const bodyGrad = this.ctx.createLinearGradient(pos.x + 6, pos.y + 14, pos.x + 26, pos.y + 14);
-        bodyGrad.addColorStop(0, this.colors.farmerShadow);
-        bodyGrad.addColorStop(0.5, this.colors.farmer);
-        bodyGrad.addColorStop(1, this.colors.farmerLight);
-        this.ctx.fillStyle = bodyGrad;
-        this.ctx.beginPath();
-        this.ctx.roundRect(pos.x + 6, pos.y + 14, 20, 16, 3);
-        this.ctx.fill();
-
-        // Head
-        const headGrad = this.ctx.createRadialGradient(pos.x + 16, pos.y + 10, 0, pos.x + 16, pos.y + 10, 8);
-        headGrad.addColorStop(0, '#f8d7a8');
-        headGrad.addColorStop(1, this.colors.farmerSkin);
-        this.ctx.fillStyle = headGrad;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 16, pos.y + 10, 7, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Hat
-        const hatGrad = this.ctx.createLinearGradient(pos.x + 6, pos.y - 4, pos.x + 6, pos.y + 6);
-        hatGrad.addColorStop(0, '#f7dc6f');
-        hatGrad.addColorStop(1, '#d4ac0d');
-        this.ctx.fillStyle = hatGrad;
-        this.ctx.fillRect(pos.x + 4, pos.y, 24, 5);
-        this.ctx.fillRect(pos.x + 8, pos.y - 6, 16, 8);
-
-        // Eyes
-        this.ctx.fillStyle = '#232931';
-        if (farmer.isChasing) {
-            // Angry eyebrows
-            this.ctx.fillRect(pos.x + 10, pos.y + 6, 5, 2);
-            this.ctx.fillRect(pos.x + 17, pos.y + 6, 5, 2);
-        }
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 13, pos.y + 10, 1.5, 0, Math.PI * 2);
-        this.ctx.arc(pos.x + 19, pos.y + 10, 1.5, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Stick
-        const stickAngle = farmer.isChasing ? Math.sin(time / 80) * 0.4 : 0.3;
-        this.ctx.save();
-        this.ctx.translate(pos.x + 26, pos.y + 18);
-        this.ctx.rotate(stickAngle);
-
-        const stickGrad = this.ctx.createLinearGradient(0, 0, 4, 24);
-        stickGrad.addColorStop(0, '#a07820');
-        stickGrad.addColorStop(1, this.colors.trunkDark);
-        this.ctx.fillStyle = stickGrad;
-        this.ctx.fillRect(0, 0, 4, 24);
-        this.ctx.restore();
-    },
-
-    // Draw leopard
-    drawLeopard(leopard, time) {
-        const pos = this.toScreen(leopard.x, leopard.y);
-        const breathe = Math.sin(time / 500) * 1;
-
-        // Cage (back) if caged
-        if (leopard.isCaged) {
-            this.ctx.fillStyle = this.colors.cageDark;
-            for (let i = 0; i < 5; i++) {
-                this.ctx.fillRect(pos.x - 12 + i * 16, pos.y - 10, 4, 58);
-            }
-        }
-
-        // Shadow
-        this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 20, pos.y + 40, 20, 5, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Body gradient
-        const bodyGrad = this.ctx.createLinearGradient(pos.x, pos.y + 10, pos.x, pos.y + 34);
-        bodyGrad.addColorStop(0, this.colors.leopardLight);
-        bodyGrad.addColorStop(0.6, this.colors.leopard);
-        bodyGrad.addColorStop(1, '#c87f0a');
-        this.ctx.fillStyle = bodyGrad;
-
-        // Body
-        this.ctx.beginPath();
-        this.ctx.roundRect(pos.x - 2, pos.y + 12 + breathe, 44, 22, 8);
-        this.ctx.fill();
-
-        // Head
-        this.ctx.beginPath();
-        this.ctx.roundRect(pos.x + 26, pos.y + 4, 20, 18, 6);
-        this.ctx.fill();
-
-        // Ears
-        this.ctx.fillStyle = this.colors.leopard;
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 30, pos.y + 2, 4, 5, -0.3, 0, Math.PI * 2);
-        this.ctx.ellipse(pos.x + 42, pos.y + 2, 4, 5, 0.3, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Spots
-        this.ctx.fillStyle = this.colors.leopardSpots;
-        const spots = [
-            { x: 6, y: 16 }, { x: 16, y: 14 }, { x: 12, y: 24 },
-            { x: 24, y: 18 }, { x: 32, y: 22 }, { x: 8, y: 28 }
-        ];
-        for (const spot of spots) {
-            this.ctx.beginPath();
-            this.ctx.ellipse(pos.x + spot.x, pos.y + spot.y + breathe, 3, 4, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-        }
-
-        // Tail
-        const tailWag = Math.sin(time / 200) * 4;
-        this.ctx.fillStyle = this.colors.leopard;
-        this.ctx.beginPath();
-        this.ctx.moveTo(pos.x - 2, pos.y + 20);
-        this.ctx.quadraticCurveTo(pos.x - 12, pos.y + 16 + tailWag, pos.x - 10, pos.y + 10 + tailWag);
-        this.ctx.lineTo(pos.x - 6, pos.y + 10 + tailWag);
-        this.ctx.quadraticCurveTo(pos.x - 8, pos.y + 18 + tailWag, pos.x + 2, pos.y + 22);
-        this.ctx.fill();
-
-        // Tail spots
-        this.ctx.fillStyle = this.colors.leopardSpots;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x - 8, pos.y + 14 + tailWag, 2, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Eyes
-        this.ctx.fillStyle = '#2ecc71';
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 32, pos.y + 10, 3, 4, 0, 0, Math.PI * 2);
-        this.ctx.ellipse(pos.x + 42, pos.y + 10, 3, 4, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Pupils
-        this.ctx.fillStyle = '#232931';
-        this.ctx.beginPath();
-        this.ctx.ellipse(pos.x + 33, pos.y + 10, 1.5, 2.5, 0, 0, Math.PI * 2);
-        this.ctx.ellipse(pos.x + 43, pos.y + 10, 1.5, 2.5, 0, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Eye shine
-        this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 31, pos.y + 8, 1, 0, Math.PI * 2);
-        this.ctx.arc(pos.x + 41, pos.y + 8, 1, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Legs
-        this.ctx.fillStyle = this.colors.leopard;
-        this.ctx.fillRect(pos.x + 4, pos.y + 30, 7, 10);
-        this.ctx.fillRect(pos.x + 14, pos.y + 30, 7, 10);
-        this.ctx.fillRect(pos.x + 24, pos.y + 30, 7, 10);
-        this.ctx.fillRect(pos.x + 34, pos.y + 30, 7, 10);
-
-        // Cage (front) if caged
-        if (leopard.isCaged) {
-            this.ctx.fillStyle = this.colors.cage;
-            for (let i = 0; i < 5; i++) {
-                this.ctx.fillRect(pos.x - 12 + i * 16, pos.y - 10, 4, 58);
-            }
-            this.ctx.fillRect(pos.x - 12, pos.y - 10, 66, 4);
-            this.ctx.fillRect(pos.x - 12, pos.y + 44, 66, 4);
-        }
-
-        // Hunger indicator
-        if (leopard.fedBananas < leopard.targetBananas) {
-            const hunger = leopard.targetBananas - leopard.fedBananas;
-            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            this.ctx.beginPath();
-            this.ctx.roundRect(pos.x - 5, pos.y - 26, 60, 18, 4);
-            this.ctx.fill();
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = 'bold 12px Segoe UI, sans-serif';
-            this.ctx.fillText(`Need: ${hunger} 🍌`, pos.x, pos.y - 12);
-        }
-    },
-
-    // Draw the map tiles
-    drawMap(level, time) {
-        const startCol = Math.floor(this.camera.x / this.TILE_SIZE);
-        const endCol = Math.ceil((this.camera.x + this.canvas.width) / this.TILE_SIZE);
-        const startRow = Math.floor(this.camera.y / this.TILE_SIZE);
-        const endRow = Math.ceil((this.camera.y + this.canvas.height) / this.TILE_SIZE);
-
-        for (let row = startRow; row <= endRow; row++) {
-            for (let col = startCol; col <= endCol; col++) {
-                const tile = level.getTile(col, row);
-                const x = col * this.TILE_SIZE;
-                const y = row * this.TILE_SIZE;
-
-                if (tile === 'water') {
-                    this.drawWater(x, y, time);
-                } else if (tile === 'grass') {
-                    this.drawGrass(x, y);
+    scatterDecor(level, cols, rows, T) {
+        // place bushes & rocks randomly on grass tiles (deterministic-ish)
+        let placed = 0;
+        for (let r = 1; r < rows - 1 && placed < 40; r++) {
+            for (let c = 1; c < cols - 1; c++) {
+                if (level.map[r][c] !== 'grass') continue;
+                const hsh = this.hash(c * 3 + 1, r * 7 + 2);
+                if (hsh > 0.93) {
+                    const px = c * this.TILE_SIZE + this.TILE_SIZE / 2;
+                    const py = r * this.TILE_SIZE + this.TILE_SIZE / 2;
+                    const wp = this.toWorld(px, py);
+                    const deco = hsh > 0.965 ? Models.rock() : Models.bush();
+                    deco.position.set(wp.x, 0, wp.z);
+                    deco.scale.multiplyScalar(0.8 + this.hash(c, r) * 0.6);
+                    this.worldGroup.add(deco);
+                    placed++;
                 }
             }
         }
     },
 
-    // Draw damage flash
-    drawDamageFlash(alpha) {
-        const gradient = this.ctx.createRadialGradient(
-            this.canvas.width / 2, this.canvas.height / 2, 0,
-            this.canvas.width / 2, this.canvas.height / 2, this.canvas.width / 2
-        );
-        gradient.addColorStop(0, `rgba(231, 76, 60, 0)`);
-        gradient.addColorStop(0.7, `rgba(231, 76, 60, ${alpha * 0.3})`);
-        gradient.addColorStop(1, `rgba(231, 76, 60, ${alpha})`);
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    groundHeightAt(px, py) {
+        // grass top is ~0 with slight bump; good enough to seat props
+        const c = px / this.TILE_SIZE, r = py / this.TILE_SIZE;
+        return this.fbm(c * 0.6, r * 0.6) * 0.25;
     },
 
-    // Draw eat effect
-    drawEatEffect(x, y, progress) {
-        const pos = this.toScreen(x, y);
-        const size = 50 * (1 - progress);
-        const alpha = 1 - progress;
-
-        // Outer ring
-        this.ctx.strokeStyle = `rgba(78, 204, 163, ${alpha})`;
-        this.ctx.lineWidth = 4;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 16, pos.y + 20, size, 0, Math.PI * 2);
-        this.ctx.stroke();
-
-        // Inner glow
-        const gradient = this.ctx.createRadialGradient(
-            pos.x + 16, pos.y + 20, 0,
-            pos.x + 16, pos.y + 20, size
-        );
-        gradient.addColorStop(0, `rgba(78, 204, 163, ${alpha * 0.5})`);
-        gradient.addColorStop(1, `rgba(78, 204, 163, 0)`);
-        this.ctx.fillStyle = gradient;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x + 16, pos.y + 20, size, 0, Math.PI * 2);
-        this.ctx.fill();
+    // ---------------- camera controls ----------------
+    initControls() {
+        let dragging = false, lx = 0, ly = 0;
+        const el = this.canvas;
+        el.addEventListener('mousedown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
+        window.addEventListener('mouseup', () => dragging = false);
+        window.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            this.cam.targetYaw -= (e.clientX - lx) * 0.006;
+            this.cam.targetPitch = THREE.MathUtils.clamp(this.cam.targetPitch + (e.clientY - ly) * 0.005, 0.45, 1.3);
+            lx = e.clientX; ly = e.clientY;
+            this.autoOrbit = false;
+        });
+        el.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + Math.sign(e.deltaY) * 2.5, 14, 70);
+        }, { passive: false });
+        // touch drag / pinch
+        let pinchD = 0;
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) { dragging = true; lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+            else if (e.touches.length === 2) { pinchD = this.touchDist(e); }
+        }, { passive: true });
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && dragging) {
+                this.cam.targetYaw -= (e.touches[0].clientX - lx) * 0.008;
+                this.cam.targetPitch = THREE.MathUtils.clamp(this.cam.targetPitch + (e.touches[0].clientY - ly) * 0.006, 0.45, 1.3);
+                lx = e.touches[0].clientX; ly = e.touches[0].clientY;
+                this.autoOrbit = false;
+            } else if (e.touches.length === 2) {
+                const d = this.touchDist(e);
+                this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - (d - pinchD) * 0.05, 14, 70);
+                pinchD = d;
+            }
+        }, { passive: true });
+        el.addEventListener('touchend', () => dragging = false);
+    },
+    touchDist(e) {
+        const a = e.touches[0], b = e.touches[1];
+        return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     },
 
-    // ============ PARTICLE SYSTEM ============
+    // Q/E rotation handled here each frame from Input
+    handleCameraKeys(dt) {
+        const rot = 0.0022 * dt;
+        if (Input.isDown('KeyQ')) { this.cam.targetYaw += rot; this.autoOrbit = false; }
+        if (Input.isDown('KeyE')) { this.cam.targetYaw -= rot; this.autoOrbit = false; }
+        if (Input.isDown('KeyR')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist - 0.06 * dt, 14, 70); }
+        if (Input.isDown('KeyF')) { this.cam.targetDist = THREE.MathUtils.clamp(this.cam.targetDist + 0.06 * dt, 14, 70); }
+    },
 
-    // Spawn particles of a given type
+    getCameraYaw() { return this.cam.yaw; },
+
+    updateCamera(target, mapW, mapH) {
+        // focus on player
+        const fp = this.toWorld(target.x + target.width / 2, target.y + target.height / 2);
+        this.cam.focus.copy(fp);
+    },
+
+    applyCamera(dt) {
+        const c = this.cam;
+        // smooth params
+        c.yaw += (c.targetYaw - c.yaw) * Math.min(1, dt * 0.008);
+        c.pitch += (c.targetPitch - c.pitch) * Math.min(1, dt * 0.008);
+        c.dist += (c.targetDist - c.dist) * Math.min(1, dt * 0.006);
+        if (this.autoOrbit) c.yaw = c.targetYaw += 0.00012 * dt;
+        // smooth focus follow
+        c.smoothFocus.lerp(c.focus, Math.min(1, dt * 0.01));
+
+        const cosP = Math.cos(c.pitch), sinP = Math.sin(c.pitch);
+        const off = new THREE.Vector3(
+            Math.sin(c.yaw) * cosP,
+            sinP,
+            Math.cos(c.yaw) * cosP
+        ).multiplyScalar(c.dist);
+        const camPos = c.smoothFocus.clone().add(off);
+        camPos.add(new THREE.Vector3(this.shake.x, this.shake.y, this.shake.z));
+        this.camera.position.copy(camPos);
+        const look = c.smoothFocus.clone();
+        look.y += 1.5;
+        this.camera.lookAt(look);
+
+        // keep sun following the focus so shadows stay crisp over the play area
+        if (this.sun) {
+            this.sun.position.set(c.smoothFocus.x + 40, 70, c.smoothFocus.z + 30);
+            this.sun.target.position.copy(c.smoothFocus);
+        }
+    },
+
+    // ---------------- per-frame world sync + render ----------------
+    renderWorld(player, leopard, farmers, level, time, game) {
+        const dt = Math.min(this.clock.getDelta() * 1000, 50);
+        const t = time / 1000;
+
+        this.handleCameraKeys(dt);
+        this.applyCamera(dt);
+        if (this.waterMat) this.waterMat.uniforms.uTime.value = t;
+
+        this.syncHippo(player, t, game.isGracePeriod());
+        this.syncLeopard(leopard, t);
+        this.syncFarmers(farmers, t);
+        this.syncTrees(level, t);
+        this.updateParticles3D(dt);
+        this.updateFloatingTexts3D(dt);
+
+        this.renderer.render(this.scene, this.camera);
+    },
+
+    renderIdle(time) {
+        const dt = Math.min((this.clock.getDelta()) * 1000, 50);
+        this.autoOrbit = true;
+        if (!this.levelBuilt) {
+            // slow spin around origin for a pleasant menu backdrop
+            this.cam.focus.set(0, 1, 0);
+        }
+        this.handleCameraKeys(dt);
+        this.applyCamera(dt);
+        if (this.waterMat) this.waterMat.uniforms.uTime.value = time / 1000;
+        this.updateParticles3D(dt);
+        this.updateFloatingTexts3D(dt);
+        this.renderer.render(this.scene, this.camera);
+    },
+
+    place(obj, px, py, footH = 0) {
+        const w = this.toWorld(px, py);
+        obj.position.x = w.x; obj.position.z = w.z;
+        obj.position.y = footH;
+    },
+
+    syncHippo(p, t, grace) {
+        if (!this.hippo) return;
+        const cx = p.x + p.width / 2, cy = p.y + p.height / 2;
+        const submerged = p.isSubmerged;
+        const w = this.toWorld(cx, cy);
+        this.hippo.position.x = w.x; this.hippo.position.z = w.z;
+        const sink = submerged ? -1.35 : 0;
+        const bob = Math.sin(t * 4) * (submerged ? 0.12 : 0.06);
+        this.hippo.position.y = sink + bob + 0.0;
+        // face movement direction (worldX=x, worldZ=y)
+        if (p.facingX !== 0 || p.facingY !== 0) {
+            const targetYaw = Math.atan2(p.facingX, p.facingY);
+            this.hippo.rotation.y = this.lerpAngle(this.hippo.rotation.y, targetYaw, 0.2);
+        }
+        // leg walk
+        const moving = (Input.up || Input.down || Input.left || Input.right) && !submerged;
+        const parts = this.hippo.userData.parts;
+        const sp = moving ? t * 10 : 0;
+        parts.legs.forEach((leg, i) => {
+            const ph = i * Math.PI / 2;
+            leg.rotation.x = moving ? Math.sin(sp + ph) * 0.5 : 0;
+        });
+        // grace blink
+        const blink = grace ? (Math.sin(t * 18) > 0 ? 0.35 : 1) : 1;
+        this.setOpacity(this.hippo, blink);
+        // submerge ripple opacity handled by sink; show carried bananas
+        this.syncCarried(p);
+    },
+
+    syncCarried(p) {
+        // pool of carried banana meshes above the hippo's back
+        while (this.carriedBananas.length < p.bananas) {
+            const b = Models.banana(0.9);
+            this.hippo.add(b);
+            this.carriedBananas.push(b);
+        }
+        for (let i = 0; i < this.carriedBananas.length; i++) {
+            const b = this.carriedBananas[i];
+            b.visible = i < p.bananas;
+            if (b.visible) {
+                const a = (i / Math.max(1, p.bananas)) * Math.PI * 2;
+                b.position.set(Math.cos(a) * 0.7, 2.7 + (i % 2) * 0.3, -0.5 + Math.sin(a) * 0.7);
+                b.rotation.y = a;
+            }
+        }
+    },
+
+    syncLeopard(l, t) {
+        if (!this.leopard) return;
+        const cx = l.x + l.width / 2, cy = l.y + l.height / 2;
+        const w = this.toWorld(cx, cy);
+        this.leopard.position.x = w.x; this.leopard.position.z = w.z;
+        this.leopard.position.y = 0;
+        const parts = this.leopard.userData.parts;
+        // face movement
+        if (l.isRoaming || l.isHunter) {
+            const targetYaw = Math.atan2(l.roamDirX, l.roamDirY);
+            this.leopard.rotation.y = this.lerpAngle(this.leopard.rotation.y, targetYaw, 0.15);
+        }
+        const moving = l.isRoaming || l.isHunter;
+        const sp = l.isLunging ? t * 18 : (moving ? t * 9 : t * 2);
+        parts.legs.forEach((leg, i) => {
+            const ph = (i % 2) * Math.PI + Math.floor(i / 2) * Math.PI;
+            leg.rotation.x = moving ? Math.sin(sp + ph) * (l.isLunging ? 0.8 : 0.5) : Math.sin(t * 2 + i) * 0.05;
+        });
+        // tail sway
+        parts.tailSegs.forEach((s, i) => {
+            s.rotation.y = Math.sin(t * 3 + i * 0.6) * 0.25;
+            s.rotation.x = -0.15 + Math.sin(t * 2 + i) * 0.08;
+        });
+        // breathing
+        parts.head.position.y = 2.0 + Math.sin(t * 2) * 0.05;
+        // cage follows
+        if (this.cageMesh) {
+            this.cageMesh.position.set(this.leopard.position.x, 0, this.leopard.position.z);
+            this.cageMesh.visible = l.isCaged;
+        }
+    },
+
+    syncFarmers(farmers, t) {
+        const list = farmers.list;
+        for (let i = 0; i < this.farmerMeshes.length; i++) {
+            const fm = this.farmerMeshes[i];
+            const f = list[i];
+            if (!f) { fm.visible = false; continue; }
+            fm.visible = f.isAlive;
+            if (!f.isAlive) continue;
+            const cx = f.x + f.width / 2, cy = f.y + f.height / 2;
+            const w = this.toWorld(cx, cy);
+            fm.position.x = w.x; fm.position.z = w.z;
+            const parts = fm.userData.parts;
+
+            if (f.isBeingEaten) {
+                // shrink & spin into the ground
+                const s = Math.max(0.01, 1 - f.eatProgress);
+                fm.scale.setScalar(s);
+                fm.position.y = -f.eatProgress * 2;
+                fm.rotation.y += 0.4;
+                continue;
+            } else {
+                fm.scale.setScalar(1);
+                fm.position.y = 0;
+            }
+
+            // face along velocity-ish: toward last seen / patrol target. Use facing toward player when chasing.
+            let fyaw = fm.rotation.y;
+            if (f.isChasing) {
+                fyaw = Math.atan2((Player.x - f.x), (Player.y - f.y));
+            } else {
+                const tgt = f.patrolPoints[f.currentPatrolIndex];
+                if (tgt) fyaw = Math.atan2((tgt.x - f.x), (tgt.y - f.y));
+            }
+            fm.rotation.y = this.lerpAngle(fm.rotation.y, fyaw, 0.12);
+
+            const speed = f.isChasing ? t * 14 : t * 7;
+            const amp = f.isChasing ? 0.9 : 0.5;
+            parts.legs.forEach((leg, k) => { leg.rotation.x = Math.sin(speed + k * Math.PI) * amp; });
+            parts.arms.forEach((arm, k) => { arm.rotation.x = Math.sin(speed + k * Math.PI) * amp * 0.6; });
+            // angry brows + raised pitchfork when chasing
+            parts.brows.forEach(b => b.visible = f.isChasing);
+            parts.fork.rotation.x = f.isChasing ? -0.6 + Math.sin(t * 14) * 0.2 : 0.15;
+            parts.head.rotation.x = f.isChasing ? -0.1 : 0;
+        }
+    },
+
+    syncTrees(level, t) {
+        for (let i = 0; i < this.treeMeshes.length; i++) {
+            const m = this.treeMeshes[i];
+            const tr = level.trees[i];
+            if (!tr) continue;
+            Models.setTreeBananas(m, tr.hasBananas);
+            const parts = m.userData.parts;
+            if (parts.crown) {
+                parts.crown.rotation.z = Math.sin(t * 1.2 + i) * 0.04;
+                parts.crown.rotation.x = Math.cos(t * 1.0 + i) * 0.03;
+            }
+            if (parts.bunch && tr.hasBananas) {
+                parts.bunch.position.y = -0.3 + Math.sin(t * 2 + i) * 0.06;
+            }
+        }
+    },
+
+    // ---------------- helpers ----------------
+    lerpAngle(a, b, t) {
+        let d = b - a;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        return a + d * t;
+    },
+    setOpacity(group, o) {
+        group.traverse(n => {
+            if (n.isMesh && n.material) {
+                if (Array.isArray(n.material)) n.material.forEach(m => { m.transparent = o < 1; m.opacity = o; });
+                else { n.material.transparent = o < 1; n.material.opacity = o; }
+            }
+        });
+    },
+    disposeGroup(g) {
+        for (let i = g.children.length - 1; i >= 0; i--) {
+            const c = g.children[i];
+            c.traverse(n => {
+                if (n.geometry) n.geometry.dispose();
+            });
+            g.remove(c);
+        }
+    },
+    resize() {
+        const cont = document.getElementById('game-container');
+        const w = cont.clientWidth, h = cont.clientHeight;
+        this.renderer.setSize(w, h, false);
+        if (!this.camera) {
+            this.camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 600);
+        } else {
+            this.camera.aspect = w / h;
+            this.camera.updateProjectionMatrix();
+        }
+    },
+
+    // ---------------- effects: FX group ----------------
+    buildFX() {
+        // shared geometries/materials for particles
+        this.pGeo = new THREE.SphereGeometry(0.18, 6, 5);
+        this.pMats = {
+            splash: new THREE.MeshStandardMaterial({ color: 0x9bd6f5, roughness: 0.3, emissive: 0x2a5a7a, emissiveIntensity: 0.3 }),
+            dust: new THREE.MeshStandardMaterial({ color: 0xb39a6a, roughness: 1 }),
+            sparkle: new THREE.MeshStandardMaterial({ color: 0xffe14d, emissive: 0xb39a00, emissiveIntensity: 0.8, roughness: 0.3 }),
+            heart: new THREE.MeshStandardMaterial({ color: 0xff5a6e, emissive: 0x5a0010, emissiveIntensity: 0.5, roughness: 0.4 }),
+            poof: new THREE.MeshStandardMaterial({ color: 0xcfd4d8, roughness: 1, transparent: true, opacity: 0.9 })
+        };
+    },
+
     spawnParticles(worldX, worldY, type, count = 5) {
+        const base = this.toWorld(worldX, worldY);
         for (let i = 0; i < count; i++) {
-            const particle = {
-                x: worldX,
-                y: worldY,
-                vx: (Math.random() - 0.5) * 4,
-                vy: (Math.random() - 0.5) * 4 - 2,
-                life: 1,
-                maxLife: 1,
-                type: type
-            };
-
-            // Customize by type
-            switch (type) {
-                case 'splash':
-                    particle.vx = (Math.random() - 0.5) * 6;
-                    particle.vy = -Math.random() * 5 - 2;
-                    particle.maxLife = 0.5;
-                    particle.life = 0.5;
-                    particle.size = 3 + Math.random() * 3;
-                    particle.color = this.colors.waterLight;
-                    break;
-                case 'dust':
-                    particle.vx = (Math.random() - 0.5) * 2;
-                    particle.vy = -Math.random() * 1;
-                    particle.maxLife = 0.4;
-                    particle.life = 0.4;
-                    particle.size = 4 + Math.random() * 4;
-                    particle.color = '#a07820';
-                    break;
-                case 'sparkle':
-                    particle.vx = (Math.random() - 0.5) * 3;
-                    particle.vy = -Math.random() * 4 - 1;
-                    particle.maxLife = 0.6;
-                    particle.life = 0.6;
-                    particle.size = 3 + Math.random() * 2;
-                    particle.color = this.colors.bananaLight;
-                    break;
-                case 'heart':
-                    particle.vx = (Math.random() - 0.5) * 1;
-                    particle.vy = -Math.random() * 2 - 1;
-                    particle.maxLife = 1;
-                    particle.life = 1;
-                    particle.size = 8;
-                    particle.color = '#e74c3c';
-                    break;
-                case 'poof':
-                    particle.vx = (Math.random() - 0.5) * 3;
-                    particle.vy = (Math.random() - 0.5) * 3;
-                    particle.maxLife = 0.5;
-                    particle.life = 0.5;
-                    particle.size = 8 + Math.random() * 8;
-                    particle.color = '#7f8c8d';
-                    break;
-            }
-
-            this.particles.push(particle);
+            const mat = (this.pMats[type] || this.pMats.poof);
+            const mesh = new THREE.Mesh(this.pGeo, mat);
+            mesh.castShadow = false;
+            const sz = type === 'poof' ? 1.6 : type === 'heart' ? 1.4 : 1.0;
+            mesh.scale.setScalar(sz * (0.6 + Math.random() * 0.8));
+            mesh.position.set(base.x + (Math.random() - 0.5) * 0.6, 1.2, base.z + (Math.random() - 0.5) * 0.6);
+            this.fxGroup.add(mesh);
+            const up = (type === 'splash') ? 0.18 : (type === 'heart' ? 0.12 : 0.1);
+            this.particles.push({
+                mesh,
+                vx: (Math.random() - 0.5) * 0.12,
+                vy: Math.random() * up + 0.05,
+                vz: (Math.random() - 0.5) * 0.12,
+                life: type === 'heart' ? 1.0 : 0.6,
+                maxLife: type === 'heart' ? 1.0 : 0.6,
+                spin: (Math.random() - 0.5) * 0.4,
+                grav: type === 'sparkle' ? 0.002 : 0.012
+            });
         }
     },
 
-    // Update all particles
-    updateParticles(dt) {
+    updateParticles3D(dt) {
+        const f = dt / 16.67;
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.15; // gravity
+            p.mesh.position.x += p.vx * f;
+            p.mesh.position.y += p.vy * f;
+            p.mesh.position.z += p.vz * f;
+            p.vy -= p.grav * f;
+            p.mesh.rotation.x += p.spin * f;
+            p.mesh.rotation.y += p.spin * f;
             p.life -= dt / 1000;
-
+            const a = Math.max(0, p.life / p.maxLife);
+            p.mesh.scale.setScalar(p.mesh.scale.x * (1 - 0.01 * f) + 0.0001);
             if (p.life <= 0) {
+                this.fxGroup.remove(p.mesh);
                 this.particles.splice(i, 1);
             }
         }
     },
+    // game.js compatibility shims (old per-frame draw model)
+    updateParticles() {},
+    drawParticles() {},
 
-    // Draw all particles
-    drawParticles() {
-        for (const p of this.particles) {
-            const pos = this.toScreen(p.x, p.y);
-            const alpha = p.life / p.maxLife;
-
-            this.ctx.globalAlpha = alpha;
-
-            if (p.type === 'heart') {
-                // Draw heart shape
-                this.ctx.fillStyle = p.color;
-                this.ctx.beginPath();
-                const size = p.size * alpha;
-                this.ctx.moveTo(pos.x, pos.y + size * 0.3);
-                this.ctx.bezierCurveTo(pos.x, pos.y, pos.x - size, pos.y, pos.x - size, pos.y + size * 0.3);
-                this.ctx.bezierCurveTo(pos.x - size, pos.y + size * 0.6, pos.x, pos.y + size, pos.x, pos.y + size);
-                this.ctx.bezierCurveTo(pos.x, pos.y + size, pos.x + size, pos.y + size * 0.6, pos.x + size, pos.y + size * 0.3);
-                this.ctx.bezierCurveTo(pos.x + size, pos.y, pos.x, pos.y, pos.x, pos.y + size * 0.3);
-                this.ctx.fill();
-            } else if (p.type === 'sparkle') {
-                // Draw star/sparkle
-                this.ctx.fillStyle = p.color;
-                const size = p.size * alpha;
-                this.ctx.beginPath();
-                for (let i = 0; i < 4; i++) {
-                    const angle = (i / 4) * Math.PI * 2;
-                    const x = pos.x + Math.cos(angle) * size;
-                    const y = pos.y + Math.sin(angle) * size;
-                    if (i === 0) this.ctx.moveTo(x, y);
-                    else this.ctx.lineTo(x, y);
-                    const midAngle = angle + Math.PI / 4;
-                    const midX = pos.x + Math.cos(midAngle) * size * 0.4;
-                    const midY = pos.y + Math.sin(midAngle) * size * 0.4;
-                    this.ctx.lineTo(midX, midY);
-                }
-                this.ctx.closePath();
-                this.ctx.fill();
-            } else {
-                // Draw circle for other particles
-                this.ctx.fillStyle = p.color;
-                this.ctx.beginPath();
-                this.ctx.arc(pos.x, pos.y, p.size * alpha, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-
-            this.ctx.globalAlpha = 1;
-        }
+    addFloatingText(worldX, worldY, text, color = '#ffffff') {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.font = 'bold 44px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+        ctx.strokeText(text, 128, 32);
+        ctx.fillStyle = color;
+        ctx.fillText(text, 128, 32);
+        const tex = new THREE.CanvasTexture(c);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sp = new THREE.Sprite(mat);
+        const w = this.toWorld(worldX, worldY);
+        sp.position.set(w.x, 3.2, w.z);
+        sp.scale.set(4, 1, 1);
+        this.fxGroup.add(sp);
+        this.floatingTexts.push({ sp, life: 1.1, maxLife: 1.1 });
     },
-
-    // ============ SCREEN SHAKE ============
-
-    startShake(intensity, duration) {
-        this.shake.intensity = intensity;
-        this.shake.duration = duration;
-    },
-
-    updateShake(dt) {
-        if (this.shake.duration > 0) {
-            this.shake.duration -= dt;
-            this.shake.x = (Math.random() - 0.5) * this.shake.intensity * 2;
-            this.shake.y = (Math.random() - 0.5) * this.shake.intensity * 2;
-        } else {
-            this.shake.x = 0;
-            this.shake.y = 0;
-        }
-    },
-
-    applyShake() {
-        if (this.shake.duration > 0) {
-            this.ctx.translate(this.shake.x, this.shake.y);
-        }
-    },
-
-    resetShake() {
-        if (this.shake.duration > 0) {
-            this.ctx.translate(-this.shake.x, -this.shake.y);
-        }
-    },
-
-    // ============ FLOATING TEXT ============
-
-    addFloatingText(worldX, worldY, text, color = '#fff') {
-        this.floatingTexts.push({
-            x: worldX,
-            y: worldY,
-            text: text,
-            color: color,
-            life: 1,
-            maxLife: 1
-        });
-    },
-
-    updateFloatingTexts(dt) {
+    updateFloatingTexts3D(dt) {
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
             const ft = this.floatingTexts[i];
-            ft.y -= 1; // Float upward
+            ft.sp.position.y += dt * 0.0016;
             ft.life -= dt / 1000;
-
+            ft.sp.material.opacity = Math.max(0, ft.life / ft.maxLife);
             if (ft.life <= 0) {
+                this.fxGroup.remove(ft.sp);
+                ft.sp.material.map.dispose();
+                ft.sp.material.dispose();
                 this.floatingTexts.splice(i, 1);
             }
         }
     },
+    updateFloatingTexts() {},
+    drawFloatingTexts() {},
 
-    drawFloatingTexts() {
-        for (const ft of this.floatingTexts) {
-            const pos = this.toScreen(ft.x, ft.y);
-            const alpha = ft.life / ft.maxLife;
-
-            this.ctx.globalAlpha = alpha;
-            this.ctx.fillStyle = ft.color;
-            this.ctx.font = 'bold 16px Segoe UI, sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(ft.text, pos.x, pos.y);
-            this.ctx.globalAlpha = 1;
+    // ---------------- screen shake (applied to camera offset) ----------------
+    startShake(intensity, duration) {
+        this.shake.intensity = Math.max(this.shake.intensity, intensity * 0.06);
+        this.shake.duration = Math.max(this.shake.duration, duration);
+    },
+    updateShake(dt) {
+        if (this.shake.duration > 0) {
+            this.shake.duration -= dt;
+            const k = this.shake.intensity * Math.min(1, this.shake.duration / 200);
+            this.shake.x = (Math.random() - 0.5) * k * 2;
+            this.shake.y = (Math.random() - 0.5) * k * 2;
+            this.shake.z = (Math.random() - 0.5) * k * 2;
+        } else {
+            this.shake.x = this.shake.y = this.shake.z = 0;
+            this.shake.intensity = 0;
         }
     },
 
-    // ============ VIGNETTE EFFECT ============
-
-    drawVignette() {
-        const gradient = this.ctx.createRadialGradient(
-            this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.3,
-            this.canvas.width / 2, this.canvas.height / 2, this.canvas.width * 0.7
-        );
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // ---------------- damage flash via CSS overlay ----------------
+    drawDamageFlash(alpha) {
+        const el = document.getElementById('fx-flash');
+        if (el) el.style.opacity = Math.min(0.85, alpha);
+    },
+    clearDamageFlash() {
+        const el = document.getElementById('fx-flash');
+        if (el) el.style.opacity = 0;
     },
 
-    // ============ GLOW EFFECT ============
-
-    drawGlow(worldX, worldY, radius, color, alpha = 0.3) {
-        const pos = this.toScreen(worldX, worldY);
-        const gradient = this.ctx.createRadialGradient(
-            pos.x, pos.y, 0,
-            pos.x, pos.y, radius
-        );
-        gradient.addColorStop(0, color.replace(')', `, ${alpha})`).replace('rgb', 'rgba'));
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-        this.ctx.globalAlpha = alpha;
-        this.ctx.fillStyle = `rgba(241, 196, 15, ${alpha})`;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.globalAlpha = 1;
-    },
-
-    // Draw glow around banana trees with bananas
-    drawBananaGlow(tree) {
-        if (!tree.hasBananas) return;
-        const pos = this.toScreen(tree.x + 20, tree.y + 20);
-
-        this.ctx.globalAlpha = 0.15 + Math.sin(Date.now() / 500) * 0.05;
-        const gradient = this.ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 40);
-        gradient.addColorStop(0, 'rgba(241, 196, 15, 0.4)');
-        gradient.addColorStop(1, 'rgba(241, 196, 15, 0)');
-        this.ctx.fillStyle = gradient;
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x, pos.y, 40, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.globalAlpha = 1;
-    }
+    // unused legacy hooks (kept so game.js calls are harmless if present)
+    clear() {}, applyShake() {}, resetShake() {}, drawVignette() {}, drawEatEffect() {},
+    updateCameraLegacy() {}
 };

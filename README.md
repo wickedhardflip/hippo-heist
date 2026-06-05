@@ -1,6 +1,6 @@
 # Hippo Heist
 
-A fun browser-based arcade game where you play as a mischievous hippo stealing bananas to feed a hungry leopard while avoiding angry farmers!
+A fun browser-based **3D** arcade game where you play as a mischievous hippo stealing bananas to feed a hungry leopard while avoiding angry farmers — now rendered as a real 3D world you view from an angled top-down camera, set in a grassy valley ringed by mountains.
 
 ## Play Now
 
@@ -16,9 +16,14 @@ You're a hippo with a mission: steal bananas from trees and feed them to a leopa
 
 | Key | Action |
 |-----|--------|
-| Arrow Keys / WASD | Move |
-| Space | Pick up bananas / Feed leopard |
-| M | Toggle music/sound |
+| Arrow Keys / WASD | Move (relative to the camera) |
+| Space | Pick up bananas / Feed leopard / Eat farmers |
+| Q / E | Rotate camera left / right |
+| Mouse drag | Orbit the camera |
+| Mouse wheel | Zoom in / out |
+| Mute button | Toggle music/sound |
+
+On touch devices: drag to orbit, pinch to zoom, joystick to move, on-screen button to act.
 
 ### Mechanics
 
@@ -41,18 +46,21 @@ You're a hippo with a mission: steal bananas from trees and feed them to a leopa
 
 ## Features
 
-- Retro pixel art graphics with modern polish
-- Synthesized 8-bit sound effects and music (no external files needed)
-- Particle effects, screen shake, and visual feedback
+- Real-time **3D graphics** (WebGL) with an orbiting, angled top-down camera
+- A grassy valley ringed by procedurally generated **mountains**, animated shader water, dynamic sunlight and soft shadows
+- Fully procedural 3D models, textures and animations — hippo, leopard, farmers and palm trees, all built at runtime (no asset files)
+- Layered, synthesized audio: richer sound effects, an ambient nature bed (wind + birds), and per-level music — all generated via the Web Audio API
+- 3D particle effects, camera shake, and floating feedback text
 - Progressive difficulty with unique level mechanics
-- Pure vanilla JavaScript - no dependencies
+- Vanilla JavaScript with a single vendored library (Three.js) — no build step, runs by opening `index.html`
 
 ## Technical Details
 
 Built with:
-- HTML5 Canvas for rendering
-- Web Audio API for synthesized retro sounds
-- Pure JavaScript (ES6+) - no frameworks or dependencies
+- Three.js (WebGL) for 3D rendering — vendored locally in `js/vendor/` so the game stays self-contained and offline-capable
+- Procedurally generated geometry and canvas textures (no image/model files)
+- Web Audio API for fully synthesized sound, ambience and music
+- Pure JavaScript (ES6+) - no build step or server required
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for technical documentation.
 

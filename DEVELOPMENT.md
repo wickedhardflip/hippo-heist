@@ -2,7 +2,9 @@
 
 ## Game Overview
 
-**Hippo Heist** is a browser-based game where you play as a hippo stealing bananas from trees to feed a hungry leopard, all while avoiding angry farmers. The game features Minecraft-inspired pixel art graphics with modern polish, retro 8-bit synthesized sound effects, and progressive difficulty across multiple levels.
+**Hippo Heist** is a browser-based game where you play as a hippo stealing bananas from trees to feed a hungry leopard, all while avoiding angry farmers. The game is rendered in real-time **3D** (Three.js / WebGL) from an angled, orbiting top-down camera, set in a grassy valley ringed by mountains. All geometry, textures, animations, sound effects and music are generated procedurally at runtime — there are no image, model or audio asset files.
+
+> **Architecture note:** Gameplay logic still runs in the original 2D world-pixel coordinate space (tiles are 32px). The 3D layer in `render.js` maps those coordinates into the 3D world (game `x` → world `X`, game `y` → world `Z`, with `Render.S` units-per-pixel) and drives all rendering. This kept the game's mechanics, levels and balance identical through the 2D→3D rewrite.
 
 ## How to Play
 
@@ -16,20 +18,26 @@
 
 ```
 Hippo/
-├── index.html          # Main HTML file, game container
+├── index.html          # Main HTML file, game container, WebGL fallback
 ├── css/
-│   └── style.css       # All styling, animations, UI layout
+│   └── style.css       # UI/menu/HUD styling, flash & vignette overlays
 ├── js/
+│   ├── vendor/
+│   │   └── three.min.js  # Three.js r137 (vendored, global THREE) — the 3D engine
+│   ├── textures.js     # Procedural canvas textures (grass, rock, bark, fur, water...)
+│   ├── models.js       # Procedural 3D models (hippo, leopard, farmer, tree, cage, props)
+│   ├── render.js       # 3D scene manager: world build, camera, lights, water, FX, sync+render
 │   ├── game.js         # Main game controller, state management, game loop
-│   ├── player.js       # Hippo player logic, movement, collision
+│   ├── player.js       # Hippo player logic, camera-relative movement, collision
 │   ├── farmer.js       # Farmer AI (patrol, chase, flee), damage dealing
 │   ├── leopard.js      # Leopard behavior (caged, roaming, hunter types)
 │   ├── level.js        # Level definitions, maps, tile system
-│   ├── render.js       # All canvas rendering, sprites, effects, particles
-│   ├── input.js        # Keyboard input handling
-│   └── audio.js        # Web Audio API synthesized sounds and music
+│   ├── input.js        # Keyboard / touch input handling
+│   └── audio.js        # Web Audio API: SFX, ambient bed, per-level music
 └── DEVELOPMENT.md      # This file
 ```
+
+Script load order matters: `three.min.js` → `textures.js` → `models.js` must load before `render.js`.
 
 ## Core Systems
 
@@ -115,42 +123,37 @@ Tile types:
 - `W` = Water (hippo can swim, farmers/leopard cannot enter)
 - `G` = Grass (all characters can walk)
 
-### Rendering System (render.js)
+### Rendering System (render.js) — 3D
 
-Canvas-based rendering with:
-- `TILE_SIZE` - 32px per tile
-- `toScreen(x, y)` - Convert world coords to screen coords
-- `cameraX, cameraY` - Camera offset for scrolling
+`render.js` is a Three.js scene manager. Key pieces:
 
-**Drawing functions:**
-- `drawMap()` - Tiles (water with shimmer, grass with variation)
-- `drawHippo(hippo, time, isGracePeriod)` - Player with bobbing, flashing during grace
-- `drawFarmer(farmer, time)` - Farmers with patrol/chase animations
-- `drawLeopard(leopard, time)` - Leopard with spots pattern
-- `drawBananaTree(tree, time)` - Trees with swaying leaves
-- `drawCage(leopard)` - Cage overlay when leopard is caged
+- `S` - world units per game pixel; `toWorld(px, py)` maps a game pixel position to a centered 3D ground point.
+- `init(canvasId)` - creates the WebGL renderer (ACES tone mapping, soft shadows), scene, fog, lighting (hemisphere + sun with shadow camera + fill), gradient sky dome, cloud sprites, particle/FX pools and camera controls. Fails gracefully to `#webgl-error` if WebGL is unavailable.
+- `buildLevel(level)` - rebuilds the per-level world: `buildValley()` (mountain-ringed bowl terrain via value-noise displacement + height-based vertex colors), `buildWater()` (animated ShaderMaterial with waves/fresnel/foam), `buildGround()` (merged grass-island geometry with dirt banks down to the water), `scatterDecor()` (bushes/rocks), then instantiates tree/hippo/leopard/cage/farmer models.
+- `renderWorld(player, leopard, farmers, level, time, game)` - per-frame entry: camera keys, camera smoothing, water time, then `syncHippo/syncLeopard/syncFarmers/syncTrees` map game state onto the 3D models (position, facing, and procedural walk/idle/tail/chomp animations), update FX, and render.
+- `renderIdle(time)` - menu/title backdrop render with slow auto-orbit.
+
+**Camera:** orbiting follow camera (`cam` state). Q/E rotate, mouse/touch drag orbits, wheel/pinch zooms; pitch and distance are clamped and smoothed. `getCameraYaw()` feeds camera-relative player movement.
 
 **Effects:**
-- `particles` array - Splash, dust, sparkle, heart, poof effects
-- `addParticle(type, x, y)` - Spawn particle effect
-- `screenShake(intensity)` - Camera shake effect
-- `floatingTexts` array - Damage numbers, pickup text
+- 3D particle pool (`spawnParticles`/`updateParticles3D`) - splash, dust, sparkle, heart, poof as small meshes with gravity.
+- Floating text - billboard `Sprite`s with canvas-text textures that rise and fade.
+- `startShake/updateShake` - applied as a camera position offset.
+- Damage flash & vignette - CSS overlays (`#fx-flash`, `#game-container::after`) driven by `drawDamageFlash()`.
 
 ### Audio System (audio.js)
 
-Pure Web Audio API synthesis (no external files):
-- `playPickup()` - Banana collection (cheerful arpeggio)
-- `playSplash()` - Water entry (noise burst)
-- `playHurt()` - Taking damage (dissonant chord)
-- `playEat()` - Leopard eating farmer (crunch sound)
-- `playFeed()` - Feeding leopard (satisfied sound)
-- `playAlert()` - Farmer spots player (alarm)
-- `playLevelComplete()` - Victory fanfare
-- `playGameOver()` - Defeat sound
-- `playClick()` - UI button click
-- `startMusic()` / `stopMusic()` - Background music loop
+Pure Web Audio API synthesis (no external files), routed through a master bus
+(gain → compressor) with separate `sfxGain`, `musicGain` and `ambientGain` submixes.
 
-Music runs at lower volume (0.08) with simple chord progressions.
+Low-level voices: `tone()`, `sweep()` (pitch glide) and `noise()` (filtered).
+
+- `playPickup()` / `playSplash()` / `playHurt()` / `playEat()` / `playFeed()` / `playAlert()` - richer multi-voice SFX
+- `playLevelComplete()` / `playGameOver()` / `playClick()` / `playFootstep()`
+- `startAmbient()` / `stopAmbient()` - looping wind (filtered brown noise + LFO) plus randomly scheduled bird `chirp()`s
+- `startMusic(level)` / `stopMusic()` - layered, faded music keyed to a per-level mood (`levelMoods`): root note, scale, tempo and waveform get tenser from level 1 → 4. Each tick plays a bassline, bar-start pad chord and an arpeggio melody.
+
+Mute is persisted in `localStorage` and fades the master bus.
 
 ## Level Progression
 
@@ -217,18 +220,20 @@ Music runs at lower volume (0.08) with simple chord progressions.
 
 ## Technical Notes
 
-- Game uses `requestAnimationFrame` for smooth 60fps loop
+- Game uses `requestAnimationFrame` for a smooth loop
 - Delta time (`dt`) passed to all update functions for frame-independent movement
-- Canvas clears and redraws every frame
-- No external dependencies - pure vanilla JavaScript
-- All sounds synthesized at runtime via Web Audio API oscillators
+- Rendering is retained-mode 3D: the scene graph persists and entity transforms are synced from game state each frame, then rendered once
+- One vendored dependency (Three.js r137, global build) under `js/vendor/`; everything else is vanilla JS
+- All geometry, textures, sounds and music are synthesized/generated at runtime — no asset files
 
 ## Browser Compatibility
 
 Tested on modern browsers with:
-- HTML5 Canvas
+- WebGL (Three.js)
 - Web Audio API
 - ES6+ JavaScript features
+
+If WebGL can't start, the game shows a `#webgl-error` message instead of failing silently.
 
 ## Running the Game
 

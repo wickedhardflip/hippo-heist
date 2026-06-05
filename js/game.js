@@ -105,10 +105,11 @@ const Game = {
         this.levelStartTime = performance.now();
         this.wasInWater = false;
         this.graceTimer = this.gracePeriod; // Start grace period
+        Render.buildLevel(Level);           // build the 3D world for this level
         this.hideAllScreens();
         this.updateHUD();
         document.getElementById('hud').classList.remove('hidden');
-        Audio.startMusic();
+        Audio.startMusic(Level.currentLevel);
     },
 
     isGracePeriod() {
@@ -322,27 +323,13 @@ const Game = {
     },
 
     render(time) {
-        Render.clear();
-
         if (this.state === 'playing' || this.state === 'paused') {
-            Render.applyShake();
-            Render.drawMap(Level, time);
-
-            for (const tree of Level.trees) Render.drawBananaGlow(tree);
-            for (const tree of Level.trees) Render.drawBananaTree(tree, time);
-
-            Render.drawLeopard(Leopard, time);
-            for (const farmer of Farmers.getVisible()) Render.drawFarmer(farmer, time);
-            Render.drawHippo(Player, time, this.isGracePeriod());
-
-            Render.drawParticles();
-            Render.drawFloatingTexts();
-
-            if (this.damageFlash > 0) Render.drawDamageFlash(this.damageFlash * 0.3);
-            if (this.eatEffect) Render.drawEatEffect(this.eatEffect.x, this.eatEffect.y, this.eatEffect.progress);
-
-            Render.drawVignette();
-            Render.resetShake();
+            Render.renderWorld(Player, Leopard, Farmers, Level, time, this);
+            if (this.damageFlash > 0) Render.drawDamageFlash(this.damageFlash * 0.7);
+            else Render.clearDamageFlash();
+        } else {
+            Render.renderIdle(time);
+            Render.clearDamageFlash();
         }
     }
 };

@@ -23,6 +23,13 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="fx-flash"></div>
+        <div id="webgl-error" class="hidden">
+            <div>
+                <h2>3D not available</h2>
+                <p>Your browser couldn't start WebGL. Try a recent version of Chrome, Edge, Firefox or Safari, and make sure hardware acceleration is enabled.</p>
+            </div>
+        </div>
 
         <!-- Title Screen -->
         <div id="title-screen" class="screen">
@@ -47,6 +54,7 @@
                         <h3>Controls</h3>
                         <p><span class="key">WASD</span> or <span class="key">Arrow Keys</span> - Move</p>
                         <p><span class="key">SPACE</span> - Grab bananas / Feed leopard / Eat farmers</p>
+                        <p><span class="key">Q</span> <span class="key">E</span> or <span class="key">Drag</span> - Rotate camera &nbsp;&middot;&nbsp; <span class="key">Scroll</span> - Zoom</p>
                     </div>
                     <div class="rule-section">
                         <h3>Tips & Tricks</h3>
@@ -143,6 +151,10 @@
         </div>
     </div>
 
+    <!-- 3D engine (vendored locally so the game stays self-contained / offline) -->
+    <script src="js/vendor/three.min.js"></script>
+    <script src="js/textures.js"></script>
+    <script src="js/models.js"></script>
     <script src="js/input.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/render.js"></script>
