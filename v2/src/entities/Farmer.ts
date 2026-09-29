@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Vec, dist, angleTo, angleDiff } from '../logic/geometry';
-import { Farmer as FarmerData } from '../logic/level';
+import { Farmer as FarmerData, LevelData, isWater } from '../logic/level';
+import { stepToward } from '../logic/move';
 import { HippoState } from '../logic/hippo';
 import { canSee, stepWatcher, Watcher, VISION_RANGE, VISION_HALF_ANGLE, CATCH_RADIUS } from '../logic/stealth';
 import { PALETTE as P } from '../art/palette';
@@ -18,8 +19,9 @@ export class Farmer {
   patrolIdx = 0;
   watcher: Watcher = { meter: 0, state: 'unaware', stunned: 0 };
   lastSeen: Vec | null = null;
+  stuckT = 0;
 
-  constructor(scene: Phaser.Scene, private data: FarmerData) {
+  constructor(scene: Phaser.Scene, private data: FarmerData, private lvl: LevelData) {
     this.pos = { ...data.patrol[0] };
     this.facing = data.facing;
     this.cone = scene.add.graphics().setDepth(5);
@@ -47,8 +49,12 @@ export class Farmer {
         const want = angleTo(this.pos, target);
         const diff = angleDiff(want, this.facing);
         this.facing += Math.sign(diff) * Math.min(Math.abs(diff), TURN_RATE * dt);
-        const step = Math.min(d, SPEED[st] * dt);
-        this.pos = { x: this.pos.x + Math.cos(want) * step, y: this.pos.y + Math.sin(want) * step };
+        const next = stepToward(this.pos, target, SPEED[st] * dt, (p) => isWater(this.lvl, p));
+        const moved = next !== this.pos;
+        this.pos = next;
+        // A patrol point unreachable around water: give up on it after 1.5 s.
+        this.stuckT = moved ? 0 : this.stuckT + dt;
+        if (st === 'unaware' && this.stuckT > 1.5) { this.patrolIdx = (this.patrolIdx + 1) % this.data.patrol.length; this.stuckT = 0; }
       }
     }
 
