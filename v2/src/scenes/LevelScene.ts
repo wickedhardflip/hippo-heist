@@ -7,6 +7,7 @@ import { drawTerrain } from '../render/terrain';
 import { TEX } from '../art/sprites';
 import { PALETTE as P } from '../art/palette';
 import { Farmer } from '../entities/Farmer';
+import { addGrain, addRipples, ripple } from '../render/effects';
 import { GAME_W, GAME_H } from '../config';
 
 export class LevelScene extends Phaser.Scene {
@@ -20,7 +21,7 @@ export class LevelScene extends Phaser.Scene {
   carriedIdx: number[] = [];
   leopard!: Phaser.GameObjects.Image;
   ended = false;
-  cursors?: Phaser.Types.Input.Keyboard.CursorKeys; // TEMP until HudScene (Task 8)
+  rippleCd = 0;
   constructor() { super('Level'); }
 
   create() {
@@ -41,7 +42,9 @@ export class LevelScene extends Phaser.Scene {
     this.gs = newGame(this.lvl.bananas.length, this.lvl.bananaTarget);
     this.registry.set('game', this.gs);
     this.cameras.main.setBounds(0, 0, this.lvl.world.w, this.lvl.world.h).startFollow(this.hippo, true, 0.1, 0.1);
-    this.cursors = this.input.keyboard?.createCursorKeys();
+    addGrain(this);
+    addRipples(this, this.lvl);
+    if (!this.scene.isActive('Hud')) this.scene.launch('Hud');
     this.events.on('caught', this.onCaught, this);
     this.events.once('shutdown', () => this.events.off('caught', this.onCaught, this));
   }
@@ -50,19 +53,19 @@ export class LevelScene extends Phaser.Scene {
     if (this.ended) return;
     const dt = Math.min(dtMs / 1000, 1 / 20);
     const base = this.registry.get('input') ?? { move: { x: 0, y: 0 }, dash: false };
-    let inp = base;
-    if (this.cursors) { // TEMP
-      const c = this.cursors, x = (c.right.isDown ? 1 : 0) - (c.left.isDown ? 1 : 0), y = (c.down.isDown ? 1 : 0) - (c.up.isDown ? 1 : 0);
-      const l = Math.hypot(x, y) || 1;
-      if (x || y) inp = { move: { x: x / l, y: y / l }, dash: inp.dash || Phaser.Input.Keyboard.JustDown(c.space) };
-    }
+    const inp = base;
     const idle = inp.move.x === 0 && inp.move.y === 0;
     this.hs = stepHippo({ ...this.hs, carrying: this.gs.carried }, { move: inp.move, dash: inp.dash, submerge: idle }, dt, this.lvl);
     this.registry.set('input', { ...base, dash: false }); // dash is a one-shot press
     this.hippo.setPosition(this.hs.pos.x, this.hs.pos.y).setFlipX(this.hs.facingLeft).setDepth(10 + this.hs.pos.y)
-      .setTexture(this.hs.submerged ? TEX.hippoSub : TEX.hippo);
+      .setTexture(this.hs.submerged ? TEX.hippoSub : TEX.hippo).setScale(this.hs.submerged ? 1.35 : 1);
 
+    const wasSub = this.hs.submerged;
     this.handleBananas();
+    this.rippleCd -= dt;
+    if (this.hs.inWater && this.rippleCd <= 0 && (Math.hypot(this.hs.vel.x, this.hs.vel.y) > 60 || this.hs.submerged !== wasSub)) {
+      ripple(this, this.hs.pos, 0.8); this.rippleCd = 0.35;
+    }
     this.stack.forEach((img, i) => img.setVisible(!this.hs.submerged && i < this.gs.carried)
       .setPosition(this.hs.pos.x + (this.hs.facingLeft ? 12 : -12), this.hs.pos.y - 70 - i * 14).setDepth(11 + this.hs.pos.y));
 
