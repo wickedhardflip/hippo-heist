@@ -1,7 +1,7 @@
-import { Vec, pointInPolygon, smoothClosedCurve, dist } from './geometry';
+import { Vec, pointInPolygon, smoothClosedCurve, strokeToPolygon, distToSegment, dist } from './geometry';
 export type Farmer = { patrol: Vec[]; facing: number };
 export type LevelData = {
-  id: string; world: { w: number; h: number };
+  id: string; name: string; timeTarget: number; world: { w: number; h: number };
   water: Vec[][];            // closed shapes (smoothed at load)
   fields: Vec[][];           // banana field plots (drawn as soil)
   paths: Vec[][];            // dirt path shapes
@@ -18,14 +18,19 @@ export function validateLevel(d: any): LevelData {
   const need = (k: string, ok: boolean) => { if (!ok) throw new Error(`Invalid level: ${k}`); };
   need('id', typeof d?.id === 'string');
   need('world', d?.world?.w > 0 && d?.world?.h > 0);
+  need('name', typeof d.name === 'string' && d.name.length > 0);
+  need('timeTarget', typeof d.timeTarget === 'number' && d.timeTarget > 0);
+  const channels = d.channels ?? [];
+  need('channels', Array.isArray(channels) && channels.every((c: any) => c.width > 0 && Array.isArray(c.points) && c.points.length >= 2 && c.points.every(isVec)));
   for (const k of ['water', 'fields', 'paths']) need(k, Array.isArray(d[k]) && d[k].every((s: any) => Array.isArray(s) && s.length >= 3 && s.every(isVec)));
-  need('water', d.water.length >= 1);
+  need('water', d.water.length + channels.length >= 1);
   for (const k of ['barn', 'leopard', 'hippoStart']) need(k, isVec(d[k]));
   need('plants', Array.isArray(d.plants) && d.plants.every(isVec));
   need('bananas', Array.isArray(d.bananas) && d.bananas.length > 0 && d.bananas.every(isVec));
   need('farmers', Array.isArray(d.farmers) && d.farmers.every((f: any) => Array.isArray(f.patrol) && f.patrol.length >= 1 && f.patrol.every(isVec) && typeof f.facing === 'number'));
   need('bananaTarget', Number.isInteger(d.bananaTarget) && d.bananaTarget > 0 && d.bananaTarget <= d.bananas.length);
-  return { ...d, water: d.water.map((s: Vec[]) => smoothClosedCurve(s, 10)) } as LevelData;
+  const water = [...d.water.map((s: Vec[]) => smoothClosedCurve(s, 10)), ...channels.map((c: any) => strokeToPolygon(c.points, c.width))];
+  return { ...d, water } as LevelData;
 }
 export const isWater = (lvl: LevelData, p: Vec) => lvl.water.some((s) => pointInPolygon(p, s));
 export function nearestWaterPoint(lvl: LevelData, p: Vec): Vec {
@@ -38,5 +43,11 @@ export function nearestWaterPoint(lvl: LevelData, p: Vec): Vec {
       if (d < bd && isWater(lvl, inner)) { bd = d; best = inner; }
     }
   }
+  return best;
+}
+export function distToWater(lvl: LevelData, p: Vec): number {
+  if (isWater(lvl, p)) return 0;
+  let best = Infinity;
+  for (const s of lvl.water) for (let i = 0; i < s.length; i++) best = Math.min(best, distToSegment(p, s[i], s[(i + 1) % s.length]));
   return best;
 }

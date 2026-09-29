@@ -12,3 +12,13 @@ it('smoothClosedCurve passes through control points and adds detail', () => {
 it('angleDiff wraps', () => {
   expect(angleDiff(0.1, 2*Math.PI - 0.1)).toBeCloseTo(0.2);
 });
+import { distToSegment, strokeToPolygon, pointInPolygon as pip } from '../src/logic/geometry';
+it('distToSegment measures to the nearest point', () => {
+  expect(distToSegment({ x: 5, y: 5 }, { x: 0, y: 0 }, { x: 10, y: 0 })).toBeCloseTo(5);
+  expect(distToSegment({ x: -3, y: 4 }, { x: 0, y: 0 }, { x: 10, y: 0 })).toBeCloseTo(5);
+});
+it('strokeToPolygon wraps a polyline with the given width', () => {
+  const poly = strokeToPolygon([{ x: 0, y: 0 }, { x: 100, y: 0 }], 20);
+  expect(pip({ x: 50, y: 5 }, poly)).toBe(true);
+  expect(pip({ x: 50, y: 15 }, poly)).toBe(false);
+});

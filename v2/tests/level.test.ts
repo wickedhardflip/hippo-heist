@@ -14,3 +14,15 @@ it('water detection + nearest water point', () => {
   const w = nearestWaterPoint(lvl, lvl.leopard);
   expect(isWater(lvl, w)).toBe(true);
 });
+import { distToWater } from '../src/logic/level';
+it('channels become water and distToWater measures to them', () => {
+  const lvl = validateLevel({ ...farm1, name: 'T', timeTarget: 60,
+    channels: [{ width: 40, points: [{ x: 1200, y: 100 }, { x: 1200, y: 400 }] }] });
+  expect(isWater(lvl, { x: 1200, y: 250 })).toBe(true);
+  expect(distToWater(lvl, { x: 1300, y: 250 })).toBeCloseTo(80, 0);
+  expect(distToWater(lvl, { x: 1200, y: 250 })).toBe(0);
+});
+it('rejects a missing timeTarget', () => {
+  const { timeTarget: _omit, ...noTime } = farm1 as Record<string, unknown>;
+  expect(() => validateLevel(noTime)).toThrow(/timeTarget/);
+});
