@@ -35,7 +35,7 @@ export class LevelScene extends Phaser.Scene {
     this.lvl.plants.forEach((p) => put(TEX.plant, p.x, p.y));
     this.bananaImgs = this.lvl.bananas.map((p) => put(TEX.banana, p.x, p.y));
     this.leopard = put(TEX.leopard, this.lvl.leopard.x, this.lvl.leopard.y);
-    this.farmers = this.lvl.farmers.map((f) => new Farmer(this, f));
+    this.farmers = this.lvl.farmers.map((f) => new Farmer(this, f, this.lvl));
     this.hippo = put(TEX.hippo, this.lvl.hippoStart.x, this.lvl.hippoStart.y);
     this.stack = [0, 1, 2].map(() => this.add.image(0, 0, TEX.banana).setOrigin(0.5, 1).setVisible(false));
     this.hs = newHippo(this.lvl.hippoStart);
