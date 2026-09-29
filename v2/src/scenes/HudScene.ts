@@ -73,14 +73,14 @@ export class HudScene extends Phaser.Scene {
     };
     mute.setPosition(GAME_W - 120, 46);
     drawMute();
-    this.add.zone(GAME_W - 120, 46, 52, 52).setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+    this.add.zone(GAME_W - 120, 46, 52, 52).setInteractive({ useHandCursor: true }).on('pointerup', () => {
       unlockAudio();
       setMuted(!isMuted());
       const save: SaveData = { ...this.registry.get('save'), muted: isMuted() };
       this.registry.set('save', save); writeSave(safeStorage(), save);
       drawMute();
     });
-    this.input.on('pointerdown', () => unlockAudio()); // fallback if the title tap was skipped
+    this.input.on('pointerup', () => unlockAudio()); // fallback if the title tap was skipped; iOS needs touch end
 
     this.pausedText = this.add.text(GAME_W / 2, GAME_H / 2, 'Paused', { ...FONT, fontSize: '48px', color: '#f3ead3', stroke: '#3b3a36', strokeThickness: 8 }).setOrigin(0.5).setVisible(false);
 

@@ -22,7 +22,8 @@ export class TitleScene extends Phaser.Scene {
     addGrain(this);
 
     const go = () => { unlockAudio(); this.scene.start('Map'); };
-    this.input.once('pointerdown', go);
+    // iOS only unlocks audio on touch END, so start the game on pointerup.
+    this.input.once('pointerup', go);
     this.input.keyboard?.once('keydown', go);
   }
 }
