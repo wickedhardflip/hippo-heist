@@ -22,3 +22,11 @@ it('strokeToPolygon wraps a polyline with the given width', () => {
   expect(pip({ x: 50, y: 5 }, poly)).toBe(true);
   expect(pip({ x: 50, y: 15 }, poly)).toBe(false);
 });
+import { smoothOpenCurve } from '../src/logic/geometry';
+it('smoothOpenCurve keeps both endpoints and adds detail', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 0 }];
+  const c = smoothOpenCurve(pts, 5);
+  expect(c[0]).toEqual({ x: 0, y: 0 });
+  expect(c[c.length - 1]).toEqual({ x: 20, y: 0 });
+  expect(c.length).toBe(11);
+});

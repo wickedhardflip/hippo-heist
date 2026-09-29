@@ -12,6 +12,6 @@ export class BootScene extends Phaser.Scene {
     this.registry.set('levels', levels);
     this.registry.set('save', loadSave(safeStorage()));
     this.registry.set('levelId', LEVEL_ORDER[0]);
-    this.scene.start('Level');
+    this.scene.start('Title');
   }
 }

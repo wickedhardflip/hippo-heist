@@ -44,3 +44,18 @@ export function strokeToPolygon(points: Vec[], width: number): Vec[] {
   });
   return [...left, ...right.reverse()];
 }
+/** Catmull-Rom through an open polyline; ends are clamped so the curve starts and ends on the endpoints. */
+export function smoothOpenCurve(pts: Vec[], segments = 10): Vec[] {
+  const out: Vec[] = [], n = pts.length;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)];
+    for (let s = 0; s < segments; s++) {
+      const t = s / segments, t2 = t * t, t3 = t2 * t;
+      const f = (a: number, b: number, c: number, d: number) =>
+        0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push({ x: f(p0.x, p1.x, p2.x, p3.x), y: f(p0.y, p1.y, p2.y, p3.y) });
+    }
+  }
+  out.push({ ...pts[n - 1] });
+  return out;
+}
