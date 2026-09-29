@@ -6,9 +6,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Hippo Heist</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #6f6a3a; overflow: hidden; touch-action: none; }
-    #game { position: fixed; inset: 0; }
+    html, body { margin: 0; height: 100%; background: #6f6a3a; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+    /* Keep the canvas inside the notch / home-bar safe area so the HUD needs no offsets. */
+    #game { position: fixed; inset: 0; box-sizing: border-box;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    #rotate { display: none; position: fixed; inset: 0; background: #6f6a3a; color: #f3ead3; font: 600 20px system-ui, sans-serif;
+      align-items: center; justify-content: center; flex-direction: column; text-align: center; z-index: 10; }
+    #rotate div { font-size: 64px; transform: rotate(90deg); }
+    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
   </style>
 </head>
-<body><div id="game"></div><script type="module" src="/src/main.ts"></script></body>
+<body>
+  <div id="game"></div>
+  <div id="rotate"><div>🦛</div><p>Turn your phone sideways to play</p></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
 </html>

@@ -42,5 +42,6 @@ Started 2026-09-28. Process: brainstorm → spec → mockup (approve) → plan �
 - [x] Brian reviews spec (approved 2026-09-29)
 - [x] Tag `v1-original` (on origin/main), create `rebuild` branch (2026-09-29)
 - [ ] **← START HERE:** Build mockup → Brian approves. Plan: `docs/superpowers/plans/2026-09-29-hippo-heist-v2-mockup.md` (9 tasks, lean scope; v2 lives in `v2/`). Awaiting Brian's plan review + execution method
+- [ ] **Deploy requirement (Brian 9/29):** keep v1 playable after v2 launches, e.g. v1 at `/classic/`, v2 at root, with a "Play the original" link. (`v1-original` tag = exact copy.)
 - [ ] Implementation plan (writing-plans) → Brian picks execution method
 - [ ] Build vertical slice
