@@ -25,7 +25,8 @@ export class LevelScene extends Phaser.Scene {
   constructor() { super('Level'); }
 
   create() {
-    this.lvl = this.registry.get('level');
+    this.lvl = this.registry.get('levels')[this.registry.get('levelId')];
+    this.registry.set('level', this.lvl);
     this.ended = false;
     this.carriedIdx = [];
     this.registry.set('input', { move: { x: 0, y: 0 }, dash: false });
