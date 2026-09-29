@@ -42,7 +42,9 @@ Started 2026-09-28. Process: brainstorm → spec → mockup (approve) → plan �
 - [x] Brian reviews spec (approved 2026-09-29)
 - [x] Tag `v1-original` (on origin/main), create `rebuild` branch (2026-09-29)
 - [x] Mockup built + reviewed; Brian approved in a desktop browser 2026-09-29 ("looks good"). iPhone test DEFERRED (do it during the vertical slice). 5 deferred minors: Space-dash on resume, Esc over the end card, joystick flash on Play again, 1-frame stale HUD after restart, Hud not restarted
-- [ ] **← START HERE:** Add level-design rules to the spec (water within a dash, 2+ routes, risky bananas, overlapping patrols, tense carry home, one new idea per level; test map is a placeholder) → then plan the vertical slice (4 Farm levels)
+- [x] Level-design rules added to spec (2026-09-29)
+- [x] Slice A built (2026-09-29): title, world map, 2 levels (Back Pond, Irrigation Ditches), stars, save, SFX + mute, farmers respect water. Plan: `docs/superpowers/plans/2026-09-29-hippo-heist-v2-slice-a.md`
+- [ ] **← START HERE:** Brian plays slice A in the browser (http://localhost:5173, or `cd v2 && npm run dev`) → then Plan B: obstacles/cover, Splash, lanterns/dusk, Mud Coat, Banana Magnet, levels 3-4, iPhone test, music, `/classic/` deploy
 - [ ] **Deploy requirement (Brian 9/29):** keep v1 playable after v2 launches, e.g. v1 at `/classic/`, v2 at root, with a "Play the original" link. (`v1-original` tag = exact copy.)
 - [ ] Implementation plan (writing-plans) → Brian picks execution method
 - [ ] Build vertical slice
