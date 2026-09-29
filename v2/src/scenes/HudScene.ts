@@ -7,6 +7,7 @@ import { joystickVector } from '../logic/joystick';
 import { Vec } from '../logic/geometry';
 import { GameState } from '../logic/game';
 import { HippoState, DASH_CD } from '../logic/hippo';
+import { PauseState, newPause, onOrientation, onToggle, isPaused } from '../logic/pause';
 
 const JOY_R = 70;
 const DASH = { x: GAME_W - 110, y: GAME_H - 120, r: 64 };
@@ -26,11 +27,24 @@ export class HudScene extends Phaser.Scene {
   private splashBtn!: Phaser.GameObjects.Container;
   private pausedText!: Phaser.GameObjects.Text;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private pause: PauseState = newPause();
 
   constructor() { super('Hud'); }
 
   create() {
     this.joyId = null; this.joyOrigin = null; this.joyCur = null; this.dashPressed = false;
+    this.pause = newPause();
+
+    // The CSS rotate prompt only covers the screen; also pause the simulation while in portrait.
+    const portraitMq = matchMedia('(orientation: portrait) and (pointer: coarse)');
+    const onMq = () => {
+      if (portraitMq.matches) this.releaseJoystick();
+      this.pause = onOrientation(this.pause, portraitMq.matches);
+      this.applyPause();
+    };
+    portraitMq.addEventListener('change', onMq);
+    this.events.once('shutdown', () => portraitMq.removeEventListener('change', onMq));
+    this.time.delayedCall(0, onMq); // after the HUD objects below exist
 
     // Top-left pills: bananas delivered/target, hearts.
     const pills = this.add.graphics();
@@ -74,11 +88,7 @@ export class HudScene extends Phaser.Scene {
       const dx = p.x - this.joyOrigin.x, dy = p.y - this.joyOrigin.y, l = Math.hypot(dx, dy), k = l > JOY_R ? JOY_R / l : 1;
       this.joyKnob.setPosition(this.joyOrigin.x + dx * k, this.joyOrigin.y + dy * k);
     });
-    const release = (p: Phaser.Input.Pointer) => {
-      if (p.id !== this.joyId) return;
-      this.joyId = null; this.joyOrigin = null; this.joyCur = null;
-      this.joyRing.setVisible(false); this.joyKnob.setVisible(false);
-    };
+    const release = (p: Phaser.Input.Pointer) => { if (p.id === this.joyId) this.releaseJoystick(); };
     this.input.on('pointerup', release);
     this.input.on('pointerupoutside', release);
 
@@ -89,10 +99,21 @@ export class HudScene extends Phaser.Scene {
     this.keys.esc.on('down', () => this.togglePause());
   }
 
+  private releaseJoystick() {
+    this.joyId = null; this.joyOrigin = null; this.joyCur = null;
+    this.joyRing.setVisible(false); this.joyKnob.setVisible(false);
+  }
+
   private togglePause() {
-    const paused = this.scene.isPaused('Level');
-    if (paused) this.scene.resume('Level'); else this.scene.pause('Level');
-    this.pausedText.setVisible(!paused);
+    this.pause = onToggle(this.pause);
+    this.applyPause();
+  }
+
+  private applyPause() {
+    const want = isPaused(this.pause), is = this.scene.isPaused('Level');
+    if (want && !is) this.scene.pause('Level');
+    else if (!want && is) this.scene.resume('Level');
+    this.pausedText.setVisible(this.pause.user);
   }
 
   update() {

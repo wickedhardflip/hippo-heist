@@ -7,9 +7,10 @@
   <title>Hippo Heist</title>
   <style>
     html, body { margin: 0; height: 100%; background: #6f6a3a; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
-    /* Keep the canvas inside the notch / home-bar safe area so the HUD needs no offsets. */
-    #game { position: fixed; inset: 0; box-sizing: border-box;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    /* Keep the canvas inside the notch / home-bar safe area so the HUD needs no offsets.
+       Inset (not padding): Phaser sizes the canvas from the parent's full box, padding included. */
+    #game { position: fixed; top: env(safe-area-inset-top); right: env(safe-area-inset-right);
+      bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left); }
     #rotate { display: none; position: fixed; inset: 0; background: #6f6a3a; color: #f3ead3; font: 600 20px system-ui, sans-serif;
       align-items: center; justify-content: center; flex-direction: column; text-align: center; z-index: 10; }
     #rotate div { font-size: 64px; transform: rotate(90deg); }
