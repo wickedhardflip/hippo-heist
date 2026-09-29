@@ -3,10 +3,12 @@ import { LevelData } from '../logic/level';
 import { HippoState, newHippo, stepHippo } from '../logic/hippo';
 import { drawTerrain } from '../render/terrain';
 import { TEX } from '../art/sprites';
+import { Farmer } from '../entities/Farmer';
 export class LevelScene extends Phaser.Scene {
   lvl!: LevelData;
   hippo!: Phaser.GameObjects.Image;
   hs!: HippoState;
+  farmers: Farmer[] = [];
   cursors?: Phaser.Types.Input.Keyboard.CursorKeys; // TEMP until HudScene (Task 8)
   constructor() { super('Level'); }
   create() {
@@ -17,7 +19,7 @@ export class LevelScene extends Phaser.Scene {
     this.lvl.plants.forEach((p) => put(TEX.plant, p.x, p.y));
     this.lvl.bananas.forEach((p) => put(TEX.banana, p.x, p.y));
     put(TEX.leopard, this.lvl.leopard.x, this.lvl.leopard.y);
-    this.lvl.farmers.forEach((f) => put(TEX.farmer, f.patrol[0].x, f.patrol[0].y));
+    this.farmers = this.lvl.farmers.map((f) => new Farmer(this, f));
     this.hippo = put(TEX.hippo, this.lvl.hippoStart.x, this.lvl.hippoStart.y);
     this.hs = newHippo(this.lvl.hippoStart);
     this.cameras.main.setBounds(0, 0, this.lvl.world.w, this.lvl.world.h).startFollow(this.hippo, true, 0.1, 0.1);
@@ -38,5 +40,6 @@ export class LevelScene extends Phaser.Scene {
     this.hippo.setPosition(this.hs.pos.x, this.hs.pos.y).setFlipX(this.hs.facingLeft).setDepth(10 + this.hs.pos.y)
       .setTexture(this.hs.submerged ? TEX.hippoSub : TEX.hippo);
     this.registry.set('hippo', this.hs);
+    for (const f of this.farmers) if (f.update(dt, this.hs)) this.events.emit('caught');
   }
 }
