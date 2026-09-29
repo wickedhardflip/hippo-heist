@@ -30,3 +30,9 @@ it('smoothOpenCurve keeps both endpoints and adds detail', () => {
   expect(c[c.length - 1]).toEqual({ x: 20, y: 0 });
   expect(c.length).toBe(11);
 });
+it('strokeToPolygon rounds both ends (no square corners)', () => {
+  const poly = strokeToPolygon([{ x: 0, y: 0 }, { x: 100, y: 0 }], 20);
+  expect(pip({ x: 106, y: 0 }, poly)).toBe(true);   // inside the round cap
+  expect(pip({ x: 108, y: 8 }, poly)).toBe(false);  // where a square corner would have been
+  expect(pip({ x: -6, y: 0 }, poly)).toBe(true);
+});

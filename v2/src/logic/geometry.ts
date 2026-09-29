@@ -33,7 +33,7 @@ export function distToSegment(p: Vec, a: Vec, b: Vec): number {
   const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
-/** Closed polygon around a polyline: left offsets forward, then right offsets backward. */
+/** Closed polygon around a polyline with round end caps: left side forward, end cap, right side back, start cap. */
 export function strokeToPolygon(points: Vec[], width: number): Vec[] {
   const h = width / 2, left: Vec[] = [], right: Vec[] = [];
   points.forEach((p, i) => {
@@ -42,7 +42,14 @@ export function strokeToPolygon(points: Vec[], width: number): Vec[] {
     const nx = (-dy / l) * h, ny = (dx / l) * h;
     left.push({ x: p.x + nx, y: p.y + ny }); right.push({ x: p.x - nx, y: p.y - ny });
   });
-  return [...left, ...right.reverse()];
+  const cap = (c: Vec, from: number) => Array.from({ length: 7 }, (_, k) => {
+    const a = from - (Math.PI * (k + 1)) / 8;
+    return { x: c.x + Math.cos(a) * h, y: c.y + Math.sin(a) * h };
+  });
+  const n = points.length;
+  const endDir = Math.atan2(points[n - 1].y - points[n - 2].y, points[n - 1].x - points[n - 2].x);
+  const startDir = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x);
+  return [...left, ...cap(points[n - 1], endDir + Math.PI / 2), ...right.reverse(), ...cap(points[0], startDir - Math.PI / 2)];
 }
 /** Catmull-Rom through an open polyline; ends are clamped so the curve starts and ends on the endpoints. */
 export function smoothOpenCurve(pts: Vec[], segments = 10): Vec[] {
