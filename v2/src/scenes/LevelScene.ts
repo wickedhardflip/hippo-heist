@@ -7,6 +7,11 @@ import { drawTerrain } from '../render/terrain';
 import { TEX } from '../art/sprites';
 import { PALETTE as P } from '../art/palette';
 import { Farmer } from '../entities/Farmer';
+import { scoreStars } from '../logic/score';
+import { recordResult, writeSave, safeStorage } from '../logic/save';
+import { nextLevelId } from '../logic/progress';
+import { LEVEL_ORDER } from '../levels/index';
+import { FONT, drawStar, button } from '../art/ui';
 import { addGrain, addRipples, ripple } from '../render/effects';
 import { GAME_W, GAME_H } from '../config';
 
@@ -106,17 +111,35 @@ export class LevelScene extends Phaser.Scene {
   private showEnd(won: boolean) {
     this.ended = true;
     this.registry.set('ended', true);
+    const levelId: string = this.registry.get('levelId');
+    const stars = scoreStars({ won, time: this.gs.time, timeTarget: this.lvl.timeTarget, spotted: this.gs.spotted });
+    if (won) {
+      const save = recordResult(this.registry.get('save'), levelId, stars);
+      writeSave(safeStorage(), save);
+      this.registry.set('save', save);
+    }
     const cx = GAME_W / 2, cy = GAME_H / 2;
+    const parts: Phaser.GameObjects.GameObject[] = [];
     const card = this.add.graphics();
     card.fillStyle(0x000000, 0.25).fillRect(0, 0, GAME_W, GAME_H);
-    card.fillStyle(P.cream, 1).fillRoundedRect(cx - 220, cy - 120, 440, 240, 28);
-    const title = this.add.text(cx, cy - 50, won ? 'Heist complete!' : 'Caught! Try again', { fontFamily: 'system-ui, sans-serif', fontSize: '40px', fontStyle: 'bold', color: '#3b3a36' }).setOrigin(0.5);
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(P.ink, 1).fillRoundedRect(cx - 110, cy + 20, 220, 64, 32);
-    const btnTxt = this.add.text(cx, cy + 52, 'Play again', { fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontStyle: 'bold', color: '#f3ead3' }).setOrigin(0.5);
-    const hit = this.add.zone(cx, cy + 52, 220, 64).setInteractive({ useHandCursor: true });
-    hit.on('pointerdown', () => this.scene.restart());
+    card.fillStyle(P.cream, 1).fillRoundedRect(cx - 260, cy - 170, 520, 340, 28);
+    parts.push(card, this.add.text(cx, cy - 120, won ? 'Heist complete!' : 'Caught!', { ...FONT, fontSize: '40px' }).setOrigin(0.5));
+    for (let i = 0; i < 3; i++) {
+      const sg = this.add.graphics();
+      drawStar(sg, 0, 0, 30, i < stars);
+      sg.setPosition(cx - 80 + i * 80, cy - 45).setScale(0);
+      this.tweens.add({ targets: sg, scale: 1, duration: 220, delay: 200 + i * 150, ease: 'Back.easeOut' });
+      parts.push(sg);
+    }
+    const t = Math.floor(this.gs.time), tt = this.lvl.timeTarget, fmt = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+    parts.push(this.add.text(cx, cy + 15, `Time ${fmt(t)} / ${fmt(tt)}   ·   Unseen ${this.gs.spotted ? '✗' : '✓'}`, { ...FONT, fontSize: '20px' }).setOrigin(0.5));
+    const next = won ? nextLevelId(LEVEL_ORDER, levelId) : null;
+    const toMap = () => { this.scene.stop('Hud'); this.scene.start('Map'); };
+    const btns: [string, () => void][] = [['Retry', () => this.scene.restart()], ['Map', toMap]];
+    if (next) btns.push(['Next', () => { this.registry.set('levelId', next); this.scene.restart(); }]);
+    const w = 150, gap = 16, x0 = cx - (btns.length * w + (btns.length - 1) * gap) / 2 + w / 2;
+    btns.forEach(([label, fn], i) => parts.push(...button(this, x0 + i * (w + gap), cy + 100, w, label, fn, label !== 'Map')));
     // Pin each element to the screen individually: input hit-testing on container children ignores the container's scroll factor.
-    [card, title, btnBg, btnTxt, hit].forEach((o) => o.setScrollFactor(0).setDepth(30000));
+    parts.forEach((o) => (o as unknown as Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth).setScrollFactor(0).setDepth(30000));
   }
 }
