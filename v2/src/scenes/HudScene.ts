@@ -8,6 +8,8 @@ import { Vec } from '../logic/geometry';
 import { GameState } from '../logic/game';
 import { HippoState, DASH_CD } from '../logic/hippo';
 import { PauseState, newPause, onOrientation, onToggle, isPaused } from '../logic/pause';
+import { unlockAudio, setMuted, isMuted } from '../audio/sfx';
+import { writeSave, safeStorage, SaveData } from '../logic/save';
 
 const JOY_R = 70;
 const DASH = { x: GAME_W - 110, y: GAME_H - 120, r: 64 };
@@ -61,6 +63,25 @@ export class HudScene extends Phaser.Scene {
     pg.fillStyle(P.cream, 0.95).fillCircle(0, 0, 26);
     pg.fillStyle(P.ink, 1).fillRoundedRect(-9, -11, 6, 22, 2).fillRoundedRect(3, -11, 6, 22, 2);
     pause.add(pg).setSize(52, 52).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.togglePause());
+    // Mute toggle, left of pause. Saved with progress.
+    const mute = this.add.graphics();
+    const drawMute = () => {
+      mute.clear().fillStyle(P.cream, 0.95).fillCircle(0, 0, 26);
+      facet(mute, [-12, -5, -5, -5, 3, -12, 3, 12, -5, 5, -12, 5], P.ink);
+      if (!isMuted()) mute.lineStyle(3, P.ink, 1).beginPath().arc(4, 0, 9, -0.8, 0.8).strokePath().beginPath().arc(4, 0, 15, -0.8, 0.8).strokePath();
+      else mute.lineStyle(3, P.alert, 1).lineBetween(-14, -14, 14, 14);
+    };
+    mute.setPosition(GAME_W - 120, 46);
+    drawMute();
+    this.add.zone(GAME_W - 120, 46, 52, 52).setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      unlockAudio();
+      setMuted(!isMuted());
+      const save: SaveData = { ...this.registry.get('save'), muted: isMuted() };
+      this.registry.set('save', save); writeSave(safeStorage(), save);
+      drawMute();
+    });
+    this.input.on('pointerdown', () => unlockAudio()); // fallback if the title tap was skipped
+
     this.pausedText = this.add.text(GAME_W / 2, GAME_H / 2, 'Paused', { ...FONT, fontSize: '48px', color: '#f3ead3', stroke: '#3b3a36', strokeThickness: 8 }).setOrigin(0.5).setVisible(false);
 
     // Dash button with a cooldown sweep.

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE as P } from './palette';
 import { facet } from './facets';
+import { sfx } from '../audio/sfx';
 
 export const FONT = { fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', color: '#3b3a36' } as const;
 
@@ -20,6 +21,6 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, lab
   const g = scene.add.graphics();
   g.fillStyle(dark ? P.ink : P.creamDark, 1).fillRoundedRect(x - w / 2, y - 30, w, 60, 30);
   const t = scene.add.text(x, y, label, { ...FONT, fontSize: '24px', color: dark ? '#f3ead3' : '#3b3a36' }).setOrigin(0.5);
-  const z = scene.add.zone(x, y, w, 60).setInteractive({ useHandCursor: true }).on('pointerdown', onTap);
+  const z = scene.add.zone(x, y, w, 60).setInteractive({ useHandCursor: true }).on('pointerdown', () => { sfx.click(); onTap(); });
   return [g, t, z] as const;
 }
