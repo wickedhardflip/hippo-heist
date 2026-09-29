@@ -87,6 +87,17 @@ Sneak onto the farm → grab bananas → deliver them to the leopard → retreat
 - Stars unlock the next world and cosmetic hats (phase 3).
 - Target level length: **2–4 minutes**.
 
+### Level design rules (added 2026-09-29)
+Maps don't need to copy v1's layouts. What matters is good maps and solid gameplay. Every level must meet these:
+1. **Water within a short dash** (~2 s) of every banana, so escaping is always a real option.
+2. **2+ routes to each goal:** a fast, exposed route and a slower one through water or cover.
+3. **Risk = reward:** the best-placed bananas sit in the riskiest spots.
+4. **Overlapping patrols with learnable gaps:** timing is a skill, not luck.
+5. **The carry home is the tension peak:** there are farmers between the field and the leopard, and carrying slows the hippo.
+6. **One new idea per level:** a new layout feature, enemy behavior, ability, or power-up.
+
+The mockup's `farm1` map is a **placeholder** for testing art and controls. It doesn't meet these rules and will be replaced.
+
 ## 6. Art & UI
 
 ### Palette (from the C sample)
