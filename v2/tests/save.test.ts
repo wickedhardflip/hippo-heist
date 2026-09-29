@@ -15,3 +15,8 @@ it('round-trips', () => {
 it('keeps the best stars', () => {
   expect(recordResult(recordResult(freshSave(), 'pond', 3), 'pond', 1).levels.pond.stars).toBe(3);
 });
+it('drops malformed star entries and clamps to 0-3', () => {
+  const s = loadSave(mem({ [SAVE_KEY]: JSON.stringify({ version: 1, levels: { pond: { stars: 'x' }, ditches: { stars: 9 }, a: null, b: 'x' }, muted: false }) }));
+  expect(s.levels).toEqual({ ditches: { stars: 3 } });
+  expect(recordResult(s, 'pond', 2).levels.pond.stars).toBe(2);
+});

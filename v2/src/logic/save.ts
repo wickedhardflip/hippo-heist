@@ -10,7 +10,12 @@ export function loadSave(kv: KV | null): SaveData {
     if (!raw) return freshSave();
     const d = JSON.parse(raw);
     if (d?.version !== 1 || typeof d.levels !== 'object' || d.levels === null) return freshSave();
-    return { version: 1, levels: d.levels, muted: !!d.muted };
+    const levels: SaveData['levels'] = {};
+    for (const [id, v] of Object.entries(d.levels as Record<string, any>)) {
+      const n = v?.stars;
+      if (typeof n === 'number' && Number.isFinite(n)) levels[id] = { stars: Math.max(0, Math.min(3, Math.floor(n))) };
+    }
+    return { version: 1, levels, muted: !!d.muted };
   } catch { return freshSave(); }
 }
 export function writeSave(kv: KV | null, s: SaveData): void {
