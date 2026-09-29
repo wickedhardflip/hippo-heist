@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status 2026-09-29:** All 11 tasks complete, reviewed, and fixed (see ledger `.superpowers/sdd/2026-09-29-hippo-heist-v2-slice-a/progress.md`).
+
 **Goal:** Turn the mockup into a real game loop: Title → World map → Level 1 (Back Pond) / Level 2 (Irrigation Ditches) → Results with stars → saved progress, with farmers that respect water and synthesized SFX.
 
 **Architecture:** Builds on the `v2/` mockup (Phaser 3 + Vite + TS). Rules stay in pure `src/logic/*` modules with Vitest tests; scenes only render and wire. Levels are JSON validated at boot; a registry lists them in order. Progress lives in a versioned localStorage save behind a storage interface, so it's testable with a fake.
@@ -64,16 +66,16 @@ tests/                  move, score, save, progress, level rules
 
 This is scene glue with no pure logic, so it's verified in the browser (ruling recorded in the ledger).
 
-- [ ] **Step 1: LevelScene**: in `create()` add `this.registry.set('ended', false); this.registry.set('hippo', this.hs); this.rippleCd = 0;` (after `this.hs` is created). In `showEnd()` add `this.registry.set('ended', true);`.
-- [ ] **Step 2: HudScene**:
+- [x] **Step 1: LevelScene**: in `create()` add `this.registry.set('ended', false); this.registry.set('hippo', this.hs); this.rippleCd = 0;` (after `this.hs` is created). In `showEnd()` add `this.registry.set('ended', true);`.
+- [x] **Step 2: HudScene**:
   - `togglePause()`: `if (this.registry.get('ended')) return;` at the top.
   - The joystick `pointerdown` handler: `if (this.registry.get('ended') || this.scene.isPaused('Level')) return;` at the top.
   - `update()`: when `this.scene.isPaused('Level')`, set `this.dashPressed = false` and skip writing dash (write `{ move: {x:0,y:0}, dash: false }`).
-- [ ] **Step 3: Browser check** (drive it with `window.__game` + `game.step` while the tab is hidden):
+- [x] **Step 3: Browser check** (drive it with `window.__game` + `game.step` while the tab is hidden):
   - After a win, Esc does NOT pause and "Play again" works.
   - Space while paused → no dash after resume (`hs.dashT === 0`).
   - Clicking Play again on its left half doesn't show the joystick ring.
-- [ ] **Step 4:** `npx tsc --noEmit` and `npm test` pass. Commit `git add v2 && git commit -m "v2: fix mockup review minors (pause/end-card/dash/joystick/HUD reset)"`.
+- [x] **Step 4:** `npx tsc --noEmit` and `npm test` pass. Commit `git add v2 && git commit -m "v2: fix mockup review minors (pause/end-card/dash/joystick/HUD reset)"`.
 
 ---
 
@@ -90,7 +92,7 @@ This is scene glue with no pure logic, so it's verified in the browser (ruling r
   - `LevelData` gains `name: string`, `timeTarget: number` (seconds), and optional input field `channels?: { points: Vec[]; width: number }[]`. `validateLevel` converts each channel to a polygon with `strokeToPolygon` and appends it to `water` (channels are NOT smoothed; river shapes still are).
   - `distToWater(lvl: LevelData, p: Vec): number` (0 if inside water; otherwise min distance to any water polygon edge)
 
-- [ ] **Step 1: Failing tests** (append):
+- [x] **Step 1: Failing tests** (append):
 
 `tests/geometry.test.ts`:
 ```ts
@@ -123,9 +125,9 @@ it('rejects a missing timeTarget', () => {
 ```
 Also update `src/levels/farm1.json` to add `"name": "Test Farm", "timeTarget": 120` so the existing tests keep passing.
 
-- [ ] **Step 2: Run** `npm test`. Expected: FAIL (missing exports / no timeTarget validation).
+- [x] **Step 2: Run** `npm test`. Expected: FAIL (missing exports / no timeTarget validation).
 
-- [ ] **Step 3: Implement** (`geometry.ts` additions):
+- [x] **Step 3: Implement** (`geometry.ts` additions):
 ```ts
 export function distToSegment(p: Vec, a: Vec, b: Vec): number {
   const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
@@ -161,7 +163,7 @@ export function distToWater(lvl: LevelData, p: Vec): number {
 ```
 (Change `need('water', d.water.length >= 1)` to allow zero river shapes when there are channels: `need('water', d.water.length + channels.length >= 1)`.)
 
-- [ ] **Step 4: Run** `npm test`. Expected: PASS. **Step 5: Commit** `git add v2 && git commit -m "v2: level channels, time target, distToWater"`
+- [x] **Step 4: Run** `npm test`. Expected: PASS. **Step 5: Commit** `git add v2 && git commit -m "v2: level channels, time target, distToWater"`
 
 ---
 
@@ -173,7 +175,7 @@ export function distToWater(lvl: LevelData, p: Vec): number {
 - Produces: `stepToward(pos: Vec, target: Vec, maxStep: number, blocked: (p: Vec) => boolean): Vec`. Moves up to `maxStep` toward `target`. If the full step lands in a blocked spot, it tries the x-only then the y-only component (sliding along the bank); if all are blocked it returns `pos` unchanged.
 - Farmer constructor becomes `new Farmer(scene, data, lvl: LevelData)`.
 
-- [ ] **Step 1: Failing tests** (`tests/move.test.ts`):
+- [x] **Step 1: Failing tests** (`tests/move.test.ts`):
 ```ts
 import { stepToward } from '../src/logic/move';
 const wallAtX100 = (p: { x: number }) => p.x > 100;
@@ -191,8 +193,8 @@ it('stays put when fully blocked', () => {
   expect(stepToward({ x: 100, y: 0 }, { x: 200, y: 0 }, 10, wallAtX100)).toEqual({ x: 100, y: 0 });
 });
 ```
-- [ ] **Step 2: Run.** Expected: FAIL.
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run.** Expected: FAIL.
+- [x] **Step 3: Implement**
 ```ts
 import { Vec } from './geometry';
 export function stepToward(pos: Vec, target: Vec, maxStep: number, blocked: (p: Vec) => boolean): Vec {
@@ -208,9 +210,9 @@ export function stepToward(pos: Vec, target: Vec, maxStep: number, blocked: (p: 
   return pos;
 }
 ```
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Wire.** In `Farmer.update`, replace the manual position step with `this.pos = stepToward(this.pos, target, SPEED[st] * dt, (p) => isWater(this.lvl, p));`. Keep the facing turn toward `want`. If in the `unaware` state the farmer didn't move for 1.5 s (stuck), advance `patrolIdx`. If in the `alert` state the hippo is in water, the farmer holds at the bank (the stepToward result) and awareness drains naturally.
-- [ ] **Step 6: Browser check.** Put the hippo in water in front of an alert farmer: the farmer stops at the bank without jittering onto the water. Commit `git add v2 && git commit -m "v2: farmers can't walk onto water"`.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Wire.** In `Farmer.update`, replace the manual position step with `this.pos = stepToward(this.pos, target, SPEED[st] * dt, (p) => isWater(this.lvl, p));`. Keep the facing turn toward `want`. If in the `unaware` state the farmer didn't move for 1.5 s (stuck), advance `patrolIdx`. If in the `alert` state the hippo is in water, the farmer holds at the bank (the stepToward result) and awareness drains naturally.
+- [x] **Step 6: Browser check.** Put the hippo in water in front of an alert farmer: the farmer stops at the bank without jittering onto the water. Commit `git add v2 && git commit -m "v2: farmers can't walk onto water"`.
 
 ---
 
@@ -223,7 +225,7 @@ export function stepToward(pos: Vec, target: Vec, maxStep: number, blocked: (p: 
   - `scoreStars(r: { won: boolean; time: number; timeTarget: number; spotted: boolean }): 0 | 1 | 2 | 3`
   - `GameState` gains `time: number; spotted: boolean`; `newGame` initializes them to `0`/`false`; new `tick(s, dt)` adds time while playing; `markSpotted(s)` sets spotted.
 
-- [ ] **Step 1: Failing tests** (`tests/score.test.ts` + append to `tests/game.test.ts`):
+- [x] **Step 1: Failing tests** (`tests/score.test.ts` + append to `tests/game.test.ts`):
 ```ts
 import { scoreStars } from '../src/logic/score';
 const base = { won: true, time: 50, timeTarget: 60, spotted: false };
@@ -241,8 +243,8 @@ it('tick only counts while playing', () => {
 });
 it('markSpotted sets the flag', () => { expect(markSpotted(newGame(1, 1)).spotted).toBe(true); });
 ```
-- [ ] **Step 2: Run.** Expected: FAIL.
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run.** Expected: FAIL.
+- [x] **Step 3: Implement**
 ```ts
 // score.ts
 export function scoreStars(r: { won: boolean; time: number; timeTarget: number; spotted: boolean }): 0 | 1 | 2 | 3 {
@@ -253,8 +255,8 @@ export function scoreStars(r: { won: boolean; time: number; timeTarget: number; 
 export const tick = (s: GameState, dt: number): GameState => (s.status === 'playing' ? { ...s, time: s.time + dt } : s);
 export const markSpotted = (s: GameState): GameState => (s.spotted ? s : { ...s, spotted: true });
 ```
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Wire.** In LevelScene `update`: `this.gs = tick(this.gs, dt)`, and if any farmer's `watcher.state === 'alert'`, call `this.gs = markSpotted(this.gs)`. HUD: a third cream pill at x 348–478 showing `m:ss` of `gs.time`, with the text in `PALETTE.alert` color once `time > timeTarget` (read `level.timeTarget` from registry `'level'`). Commit `git add v2 && git commit -m "v2: stars scoring, level timer, spotted tracking"`.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Wire.** In LevelScene `update`: `this.gs = tick(this.gs, dt)`, and if any farmer's `watcher.state === 'alert'`, call `this.gs = markSpotted(this.gs)`. HUD: a third cream pill at x 348–478 showing `m:ss` of `gs.time`, with the text in `PALETTE.alert` color once `time > timeTarget` (read `level.timeTarget` from registry `'level'`). Commit `git add v2 && git commit -m "v2: stars scoring, level timer, spotted tracking"`.
 
 ---
 
@@ -273,7 +275,7 @@ export const markSpotted = (s: GameState): GameState => (s.spotted ? s : { ...s,
   - `recordResult(s: SaveData, levelId: string, stars: number): SaveData` (keeps the best)
   - `safeStorage(): KV | null` (returns `window.localStorage` inside try/catch, else null)
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 ```ts
 import { loadSave, writeSave, recordResult, freshSave, SAVE_KEY, KV } from '../src/logic/save';
 const mem = (init: Record<string, string> = {}): KV => ({ getItem: (k) => init[k] ?? null, setItem: (k, v) => { init[k] = v; } });
@@ -293,8 +295,8 @@ it('keeps the best stars', () => {
   expect(recordResult(recordResult(freshSave(), 'pond', 3), 'pond', 1).levels.pond.stars).toBe(3);
 });
 ```
-- [ ] **Step 2: Run.** Expected: FAIL.
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run.** Expected: FAIL.
+- [x] **Step 3: Implement**
 ```ts
 export type SaveData = { version: 1; levels: Record<string, { stars: number }>; muted: boolean };
 export type KV = { getItem(k: string): string | null; setItem(k: string, v: string): void };
@@ -316,7 +318,7 @@ export function recordResult(s: SaveData, levelId: string, stars: number): SaveD
 }
 export function safeStorage(): KV | null { try { return typeof window !== 'undefined' ? window.localStorage : null; } catch { return null; } }
 ```
-- [ ] **Step 4: Run.** Expected: PASS. **Step 5: Commit** `git add v2 && git commit -m "v2: versioned, crash-proof save data"`
+- [x] **Step 4: Run.** Expected: PASS. **Step 5: Commit** `git add v2 && git commit -m "v2: versioned, crash-proof save data"`
 
 ---
 
@@ -331,7 +333,7 @@ export function safeStorage(): KV | null { try { return typeof window !== 'undef
   - `nextLevelId(order: string[], id: string): string | null`
   - Registry keys: `'levels'` (Record<id, LevelData>), `'levelId'` (current), `'save'` (SaveData)
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 ```ts
 import { isUnlocked, nextLevelId } from '../src/logic/progress';
 import { freshSave, recordResult } from '../src/logic/save';
@@ -346,8 +348,8 @@ it('nextLevelId is null after the last level', () => {
   expect(nextLevelId(order, 'pond')).toBe('ditches'); expect(nextLevelId(order, 'barn')).toBeNull();
 });
 ```
-- [ ] **Step 2: Run.** Expected: FAIL.
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run.** Expected: FAIL.
+- [x] **Step 3: Implement**
 ```ts
 import { SaveData } from './save';
 export function isUnlocked(save: SaveData, order: string[], id: string): boolean {
@@ -359,8 +361,8 @@ export function nextLevelId(order: string[], id: string): string | null {
   const i = order.indexOf(id); return i >= 0 && i < order.length - 1 ? order[i + 1] : null;
 }
 ```
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Wire.** BootScene: validate every level in `RAW_LEVELS` into registry `'levels'`, set `'save'` = `loadSave(safeStorage())`, set `'levelId'` = `LEVEL_ORDER[0]`, and start `'Level'` for now (`'Title'` after Task 9). LevelScene `create()`: `this.lvl = this.registry.get('levels')[this.registry.get('levelId')]` and also `this.registry.set('level', this.lvl)` (the HUD reads it). Commit `git add v2 && git commit -m "v2: level registry and unlock progression"`.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Wire.** BootScene: validate every level in `RAW_LEVELS` into registry `'levels'`, set `'save'` = `loadSave(safeStorage())`, set `'levelId'` = `LEVEL_ORDER[0]`, and start `'Level'` for now (`'Title'` after Task 9). LevelScene `create()`: `this.lvl = this.registry.get('levels')[this.registry.get('levelId')]` and also `this.registry.set('level', this.lvl)` (the HUD reads it). Commit `git add v2 && git commit -m "v2: level registry and unlock progression"`.
 
 ---
 
@@ -370,7 +372,7 @@ export function nextLevelId(order: string[], id: string): string | null {
 
 **Design:** A round pond in the middle of the farm, with banana patches at the four corners around it. One slow farmer circles the pond on the ring road. The leopard is on the east bank past the ring, so the carry home crosses the patrol. The hippo starts in the pond. New idea: sinking to hide.
 
-- [ ] **Step 1: Failing rule tests** (`tests/levels.test.ts`). These apply to every registered level, so levels 2–4 inherit them:
+- [x] **Step 1: Failing rule tests** (`tests/levels.test.ts`). These apply to every registered level, so levels 2–4 inherit them:
 ```ts
 import { RAW_LEVELS, LEVEL_ORDER } from '../src/levels/index';
 import { validateLevel, distToWater, isWater } from '../src/logic/level';
@@ -388,8 +390,8 @@ for (const id of LEVEL_ORDER) {
   });
 }
 ```
-- [ ] **Step 2: Run.** Expected: FAIL (`pond` still points at farm1, whose id is `farm1`).
-- [ ] **Step 3: Create `pond.json`**
+- [x] **Step 2: Run.** Expected: FAIL (`pond` still points at farm1, whose id is `farm1`).
+- [x] **Step 3: Create `pond.json`**
 ```json
 {
   "id": "pond", "name": "Back Pond", "timeTarget": 90,
@@ -418,8 +420,8 @@ for (const id of LEVEL_ORDER) {
 }
 ```
 Point `index.ts` `pond` at `./pond.json`.
-- [ ] **Step 4: Run.** Expected: PASS for `pond` (`ditches` still fails until Task 8; run `npx vitest run tests/levels.test.ts -t pond`).
-- [ ] **Step 5: Commit** `git add v2 && git commit -m "v2: level 1 Back Pond"`
+- [x] **Step 4: Run.** Expected: PASS for `pond` (`ditches` still fails until Task 8; run `npx vitest run tests/levels.test.ts -t pond`).
+- [x] **Step 5: Commit** `git add v2 && git commit -m "v2: level 1 Back Pond"`
 
 ---
 
@@ -429,7 +431,7 @@ Point `index.ts` `pond` at `./pond.json`.
 
 **Design:** A river on the west edge where the hippo starts. Three irrigation ditches (channels) branch east: two horizontal, one vertical, all connected to the river. Four field blocks sit between them. Farmer 1 walks the south bank of the upper ditch; Farmer 2 loops the east block. Their routes meet near (1300, 620), where the best bananas are. The leopard is on the east edge, so the carry home crosses both patrols or takes the lower ditch and a short land dash. New ideas: Dash and two patrols. Swimming in a ditch is fast but visible (you only hide while still).
 
-- [ ] **Step 1: Create `ditches.json`**
+- [x] **Step 1: Create `ditches.json`**
 ```json
 {
   "id": "ditches", "name": "Irrigation Ditches", "timeTarget": 150,
@@ -466,8 +468,8 @@ Point `index.ts` `pond` at `./pond.json`.
 }
 ```
 Point `index.ts` `ditches` at `./ditches.json`.
-- [ ] **Step 2: Run** `npm test`. Expected: all level rule tests PASS. If a patrol point or banana lands in water (a smoothed shoreline or channel width), nudge it ≥ 20 px onto land and note it in the ledger.
-- [ ] **Step 3: Browser check.** Screenshot both levels (`registry.set('levelId', …)` then restart Level): channels read as clean blue ditches with banks, and both patrols are visible. Commit `git add v2 && git commit -m "v2: level 2 Irrigation Ditches"`.
+- [x] **Step 2: Run** `npm test`. Expected: all level rule tests PASS. If a patrol point or banana lands in water (a smoothed shoreline or channel width), nudge it ≥ 20 px onto land and note it in the ledger.
+- [x] **Step 3: Browser check.** Screenshot both levels (`registry.set('levelId', …)` then restart Level): channels read as clean blue ditches with banks, and both patrols are visible. Commit `git add v2 && git commit -m "v2: level 2 Irrigation Ditches"`.
 
 ---
 
@@ -477,7 +479,7 @@ Point `index.ts` `ditches` at `./ditches.json`.
 
 **Interfaces:** Consumes `isUnlocked`, `nextLevelId`, `scoreStars`, `recordResult`, `writeSave`, `safeStorage`, `LEVEL_ORDER`, registry `'levels'|'levelId'|'save'`. Produces `drawStar(g, x, y, r, filled)` in `v2/src/art/ui.ts` (faceted 5-point star: fill `PALETTE.banana` with a `bananaDark` right half when filled, `creamDark` when empty).
 
-- [ ] **Step 1: `art/ui.ts`**
+- [x] **Step 1: `art/ui.ts`**
 ```ts
 import Phaser from 'phaser';
 import { PALETTE as P } from './palette';
@@ -497,11 +499,11 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, lab
   return [g, t, z] as const;
 }
 ```
-- [ ] **Step 2: TitleScene.** Background `PALETTE.water` with 3 slow ripple rings (reuse `ripple`) and the faceted `hippo-sub` texture bobbing (tween y ±6, 1.6 s yoyo). The title "Hippo Heist" is 88px bold cream with an ink stroke of 10; "Tap to play" is 28px and pulses (alpha tween). On `pointerdown` or any key: `unlockAudio()` (Task 10), then `this.scene.start('Map')`. Add grain.
-- [ ] **Step 3: MapScene.** Land background plus a winding river polyline (`strokeToPolygon` of `[(120,560),(360,420),(640,520),(900,360),(1160,460)]`, width 60, drawn in water color with a bank lip like terrain). Level nodes sit at those points (one per `LEVEL_ORDER` entry, in order). Each node is a cream circle r=46 with the level number (32px), the level name below (18px), and 3 small stars (r=10) from `save.levels[id]?.stars`. Locked nodes are drawn at alpha 0.4 with a small faceted padlock; tapping a locked node does nothing. Tapping an unlocked node: `registry.set('levelId', id)`, `this.scene.start('Level')`. A "Back" cream button top-left → Title.
-- [ ] **Step 4: Results card** (replace the body of `LevelScene.showEnd`). Compute `stars = scoreStars({ won, time: gs.time, timeTarget: lvl.timeTarget, spotted: gs.spotted })`. If won: `save = recordResult(save, levelId, stars)`, `writeSave(safeStorage(), save)`, `registry.set('save', save)`. The card is 520×300 cream: the title ("Heist complete!" / "Caught!") and 3 stars (r=30) that pop in one by one (scale 0→1, 150 ms apart, `sfx.star()` each). Below them a small line: "⏱ m:ss / target m:ss · Unseen ✓/✗". Buttons: `Retry` (restart), `Map` (stop Hud, start Map), and `Next` only if won and `nextLevelId` exists (set levelId, restart). All elements `setScrollFactor(0)` individually at depth 30000.
-- [ ] **Step 5: Stop the HUD when leaving a level:** LevelScene `shutdown` → `this.scene.stop('Hud')` only when the next scene isn't Level (simplest: the Map/Title buttons call `this.scene.stop('Hud')` before `start`).
-- [ ] **Step 6: Browser check:**
+- [x] **Step 2: TitleScene.** Background `PALETTE.water` with 3 slow ripple rings (reuse `ripple`) and the faceted `hippo-sub` texture bobbing (tween y ±6, 1.6 s yoyo). The title "Hippo Heist" is 88px bold cream with an ink stroke of 10; "Tap to play" is 28px and pulses (alpha tween). On `pointerdown` or any key: `unlockAudio()` (Task 10), then `this.scene.start('Map')`. Add grain.
+- [x] **Step 3: MapScene.** Land background plus a winding river polyline (`strokeToPolygon` of `[(120,560),(360,420),(640,520),(900,360),(1160,460)]`, width 60, drawn in water color with a bank lip like terrain). Level nodes sit at those points (one per `LEVEL_ORDER` entry, in order). Each node is a cream circle r=46 with the level number (32px), the level name below (18px), and 3 small stars (r=10) from `save.levels[id]?.stars`. Locked nodes are drawn at alpha 0.4 with a small faceted padlock; tapping a locked node does nothing. Tapping an unlocked node: `registry.set('levelId', id)`, `this.scene.start('Level')`. A "Back" cream button top-left → Title.
+- [x] **Step 4: Results card** (replace the body of `LevelScene.showEnd`). Compute `stars = scoreStars({ won, time: gs.time, timeTarget: lvl.timeTarget, spotted: gs.spotted })`. If won: `save = recordResult(save, levelId, stars)`, `writeSave(safeStorage(), save)`, `registry.set('save', save)`. The card is 520×300 cream: the title ("Heist complete!" / "Caught!") and 3 stars (r=30) that pop in one by one (scale 0→1, 150 ms apart, `sfx.star()` each). Below them a small line: "⏱ m:ss / target m:ss · Unseen ✓/✗". Buttons: `Retry` (restart), `Map` (stop Hud, start Map), and `Next` only if won and `nextLevelId` exists (set levelId, restart). All elements `setScrollFactor(0)` individually at depth 30000.
+- [x] **Step 5: Stop the HUD when leaving a level:** LevelScene `shutdown` → `this.scene.stop('Hud')` only when the next scene isn't Level (simplest: the Map/Title buttons call `this.scene.stop('Hud')` before `start`).
+- [x] **Step 6: Browser check:**
   - Title → Map shows level 1 unlocked and level 2 locked.
   - Win level 1 → the results card shows stars and Next → level 2 loads.
   - Map now shows level 1 stars and level 2 unlocked.
@@ -516,7 +518,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, lab
 
 **Interfaces:** Produces `unlockAudio(): void`, `setMuted(m: boolean): void`, `isMuted(): boolean`, and `sfx` with `pluck(n: 1|2|3)`, `dash()`, `bloop()`, `pop()`, `question()`, `alert()`, `feed()`, `click()`, `star()`, `caught()`.
 
-- [ ] **Step 1: Implement `sfx.ts`**
+- [x] **Step 1: Implement `sfx.ts`**
 ```ts
 let ctx: AudioContext | null = null, muted = false;
 export function unlockAudio() {
@@ -553,15 +555,15 @@ export const sfx = {
   caught: () => tone(400, 0.35, 'sawtooth', 0.08, 150),
 };
 ```
-- [ ] **Step 2: Hook the sounds up:**
+- [x] **Step 2: Hook the sounds up:**
   - **LevelScene:** `pluck(carried)` on pickup, `feed()` on deliver, `bloop()` when `submerged` turns on, `pop()` when it turns off, `caught()` in `onCaught`, `dash()` when `hs.dashT` goes from 0 to >0.
   - **Farmer:** `question()` or `alert()` when the watcher's state changes to suspicious or alert.
   - **Buttons:** `click()` on every button tap.
-- [ ] **Step 3: Mute.**
+- [x] **Step 3: Mute.**
   - At boot: `setMuted(save.muted)`.
   - HUD: a cream round speaker button left of pause at (GAME_W−120, 46). It toggles `setMuted`, sets `save.muted`, calls `writeSave`, and redraws the icon (a speaker, with or without two arcs).
   - Also call `unlockAudio()` on the first HUD pointerdown, as a fallback.
-- [ ] **Step 4: Browser check.** Sounds play after the title tap; mute persists after a reload. `npm test` and `npm run build` pass. Commit `git add v2 && git commit -m "v2: synthesized SFX and persistent mute"`.
+- [x] **Step 4: Browser check.** Sounds play after the title tap; mute persists after a reload. `npm test` and `npm run build` pass. Commit `git add v2 && git commit -m "v2: synthesized SFX and persistent mute"`.
 
 ---
 
@@ -569,6 +571,6 @@ export const sfx = {
 
 **Files:** Modify level JSONs or constants only as the playtest demands; `TASKS.md`
 
-- [ ] **Step 1:** Play both levels in the browser (drive with keys, or teleport via `window.__game` for reachability). For each level record: can it be won? Is there a real choice between routes? Does the carry home feel tense? Is 3-starring possible but hard?
-- [ ] **Step 2:** Tune only data or constants (patrol points, banana spots, `timeTarget`, farmer `SPEED`). Every change must keep `tests/levels.test.ts` green. Record each change in the ledger.
-- [ ] **Step 3:** `npm test` and `npm run build` pass. Update `TASKS.md` (slice A done; Plan B next). Commit and push `rebuild`.
+- [x] **Step 1:** Play both levels in the browser (drive with keys, or teleport via `window.__game` for reachability). For each level record: can it be won? Is there a real choice between routes? Does the carry home feel tense? Is 3-starring possible but hard?
+- [x] **Step 2:** Tune only data or constants (patrol points, banana spots, `timeTarget`, farmer `SPEED`). Every change must keep `tests/levels.test.ts` green. Record each change in the ledger.
+- [x] **Step 3:** `npm test` and `npm run build` pass. Update `TASKS.md` (slice A done; Plan B next). Commit and push `rebuild`.

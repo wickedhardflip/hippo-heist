@@ -44,7 +44,8 @@ Started 2026-09-28. Process: brainstorm → spec → mockup (approve) → plan �
 - [x] Mockup built + reviewed; Brian approved in a desktop browser 2026-09-29 ("looks good"). iPhone test DEFERRED (do it during the vertical slice). 5 deferred minors: Space-dash on resume, Esc over the end card, joystick flash on Play again, 1-frame stale HUD after restart, Hud not restarted
 - [x] Level-design rules added to spec (2026-09-29)
 - [x] Slice A built (2026-09-29): title, world map, 2 levels (Back Pond, Irrigation Ditches), stars, save, SFX + mute, farmers respect water. Plan: `docs/superpowers/plans/2026-09-29-hippo-heist-v2-slice-a.md`
-- [ ] **← START HERE:** Brian plays slice A in the browser (http://localhost:5173, or `cd v2 && npm run dev`) → then Plan B: obstacles/cover, Splash, lanterns/dusk, Mud Coat, Banana Magnet, levels 3-4, iPhone test, music, `/classic/` deploy
+- [x] Brian played slice A (2026-09-29): "It works." Fixed at his request: seams where water shapes overlap (merged water rendering) and square ditch ends (round caps)
+- [ ] **← START HERE:** Write Plan B (`docs/superpowers/plans/`, use writing-plans): obstacles/cover + Mud Coat → L3 The Barnyard; Splash + lanterns/dusk + Banana Magnet → L4 Harvest Dusk; music (CC0); iPhone test (verify the iOS audio unlock on touch end); deferred minors (unknown levelId crash, Farmer stuckT while alert, webkitAudioContext); deploy with v1 at `/classic/`
 - [ ] **Deploy requirement (Brian 9/29):** keep v1 playable after v2 launches, e.g. v1 at `/classic/`, v2 at root, with a "Play the original" link. (`v1-original` tag = exact copy.)
 - [ ] Implementation plan (writing-plans) → Brian picks execution method
 - [ ] Build vertical slice
