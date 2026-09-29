@@ -12,6 +12,7 @@ import { recordResult, writeSave, safeStorage } from '../logic/save';
 import { nextLevelId } from '../logic/progress';
 import { LEVEL_ORDER } from '../levels/index';
 import { FONT, drawStar, button } from '../art/ui';
+import { sfx } from '../audio/sfx';
 import { addGrain, addRipples, ripple } from '../render/effects';
 import { GAME_W, GAME_H } from '../config';
 
@@ -64,12 +65,15 @@ export class LevelScene extends Phaser.Scene {
     const base = this.registry.get('input') ?? { move: { x: 0, y: 0 }, dash: false };
     const inp = base;
     const idle = inp.move.x === 0 && inp.move.y === 0;
+    const prevSub = this.hs.submerged, prevDashT = this.hs.dashT;
     this.hs = stepHippo({ ...this.hs, carrying: this.gs.carried }, { move: inp.move, dash: inp.dash, submerge: idle }, dt, this.lvl);
     this.registry.set('input', { ...base, dash: false }); // dash is a one-shot press
     this.hippo.setPosition(this.hs.pos.x, this.hs.pos.y).setFlipX(this.hs.facingLeft).setDepth(10 + this.hs.pos.y)
       .setTexture(this.hs.submerged ? TEX.hippoSub : TEX.hippo).setScale(this.hs.submerged ? 1.35 : 1);
 
     const wasSub = this.hs.submerged;
+    if (this.hs.submerged !== prevSub) (this.hs.submerged ? sfx.bloop : sfx.pop)();
+    if (prevDashT === 0 && this.hs.dashT > 0) sfx.dash();
     this.handleBananas();
     this.rippleCd -= dt;
     if (this.hs.inWater && this.rippleCd <= 0 && (Math.hypot(this.hs.vel.x, this.hs.vel.y) > 60 || this.hs.submerged !== wasSub)) {
@@ -91,16 +95,18 @@ export class LevelScene extends Phaser.Scene {
     this.lvl.bananas.forEach((b, i) => {
       if (!this.gs.remaining[i] || dist(b, this.hs.pos) > PICK_RADIUS) return;
       const next = pickup(this.gs, i);
-      if (next !== this.gs) { this.gs = next; this.carriedIdx.push(i); this.bananaImgs[i].setVisible(false); }
+      if (next !== this.gs) { this.gs = next; this.carriedIdx.push(i); this.bananaImgs[i].setVisible(false); sfx.pluck(this.gs.carried); }
     });
     if (this.gs.carried > 0 && dist(this.lvl.leopard, this.hs.pos) < FEED_RADIUS) {
       this.gs = deliver(this.gs);
+      sfx.feed();
       this.carriedIdx = [];
       this.tweens.add({ targets: this.leopard, scaleX: 1.15, scaleY: 1.15, yoyo: true, duration: 140 });
     }
   }
 
   private onCaught() {
+    sfx.caught();
     this.gs = restoreDropped(caught(this.gs), this.carriedIdx);
     this.carriedIdx.forEach((i) => this.bananaImgs[i].setVisible(true));
     this.carriedIdx = [];
@@ -128,7 +134,7 @@ export class LevelScene extends Phaser.Scene {
       const sg = this.add.graphics();
       drawStar(sg, 0, 0, 30, i < stars);
       sg.setPosition(cx - 80 + i * 80, cy - 45).setScale(0);
-      this.tweens.add({ targets: sg, scale: 1, duration: 220, delay: 200 + i * 150, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: sg, scale: 1, duration: 220, delay: 200 + i * 150, ease: 'Back.easeOut', onStart: () => { if (i < stars) sfx.star(); } });
       parts.push(sg);
     }
     const t = Math.floor(this.gs.time), tt = this.lvl.timeTarget, fmt = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;

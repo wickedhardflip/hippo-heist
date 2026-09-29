@@ -6,6 +6,7 @@ import { HippoState } from '../logic/hippo';
 import { canSee, stepWatcher, Watcher, VISION_RANGE, VISION_HALF_ANGLE, CATCH_RADIUS } from '../logic/stealth';
 import { PALETTE as P } from '../art/palette';
 import { TEX } from '../art/sprites';
+import { sfx } from '../audio/sfx';
 
 const SPEED = { unaware: 90, suspicious: 60, alert: 210 } as const;
 const TURN_RATE = 4; // rad/s
@@ -33,7 +34,9 @@ export class Farmer {
   update(dt: number, h: HippoState): boolean {
     const sees = canSee(this.pos, this.facing, h.pos, h.submerged);
     if (sees) this.lastSeen = { ...h.pos };
+    const prevState = this.watcher.state;
     this.watcher = stepWatcher(this.watcher, sees, dt);
+    if (this.watcher.state !== prevState) { if (this.watcher.state === 'suspicious' && prevState === 'unaware') sfx.question(); else if (this.watcher.state === 'alert') sfx.alert(); }
     const st = this.watcher.state;
 
     let target: Vec | null = null;
