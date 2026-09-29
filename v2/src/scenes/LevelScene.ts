@@ -40,6 +40,9 @@ export class LevelScene extends Phaser.Scene {
     this.stack = [0, 1, 2].map(() => this.add.image(0, 0, TEX.banana).setOrigin(0.5, 1).setVisible(false));
     this.hs = newHippo(this.lvl.hippoStart);
     this.gs = newGame(this.lvl.bananas.length, this.lvl.bananaTarget);
+    this.rippleCd = 0;
+    this.registry.set('ended', false);
+    this.registry.set('hippo', this.hs);
     this.registry.set('game', this.gs);
     this.cameras.main.setBounds(0, 0, this.lvl.world.w, this.lvl.world.h).startFollow(this.hippo, true, 0.1, 0.1);
     addGrain(this);
@@ -99,6 +102,7 @@ export class LevelScene extends Phaser.Scene {
 
   private showEnd(won: boolean) {
     this.ended = true;
+    this.registry.set('ended', true);
     const cx = GAME_W / 2, cy = GAME_H / 2;
     const card = this.add.graphics();
     card.fillStyle(0x000000, 0.25).fillRect(0, 0, GAME_W, GAME_H);
