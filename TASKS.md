@@ -41,6 +41,6 @@ Started 2026-09-28. Process: brainstorm → spec → mockup (approve) → plan �
 - [x] Write spec → `docs/superpowers/specs/2026-09-29-hippo-heist-v2-design.md` (committed on rebuild)
 - [x] Brian reviews spec (approved 2026-09-29)
 - [x] Tag `v1-original` (on origin/main), create `rebuild` branch (2026-09-29)
-- [ ] **← START HERE:** Build mockup → Brian approves
+- [ ] **← START HERE:** Build mockup → Brian approves. Plan: `docs/superpowers/plans/2026-09-29-hippo-heist-v2-mockup.md` (9 tasks, lean scope; v2 lives in `v2/`). Awaiting Brian's plan review + execution method
 - [ ] Implementation plan (writing-plans) → Brian picks execution method
 - [ ] Build vertical slice
