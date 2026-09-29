@@ -28,3 +28,19 @@ export function smoothClosedCurve(pts: Vec[], segments = 10): Vec[] {
   }
   return out;
 }
+export function distToSegment(p: Vec, a: Vec, b: Vec): number {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+/** Closed polygon around a polyline: left offsets forward, then right offsets backward. */
+export function strokeToPolygon(points: Vec[], width: number): Vec[] {
+  const h = width / 2, left: Vec[] = [], right: Vec[] = [];
+  points.forEach((p, i) => {
+    const a = points[Math.max(0, i - 1)], b = points[Math.min(points.length - 1, i + 1)];
+    const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+    const nx = (-dy / l) * h, ny = (dx / l) * h;
+    left.push({ x: p.x + nx, y: p.y + ny }); right.push({ x: p.x - nx, y: p.y - ny });
+  });
+  return [...left, ...right.reverse()];
+}
