@@ -78,7 +78,7 @@ export class HudScene extends Phaser.Scene {
     this.joyRing = this.add.circle(0, 0, JOY_R, P.cream, 0.35).setVisible(false);
     this.joyKnob = this.add.circle(0, 0, 28, P.cream, 0.6).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.joyId !== null || p.x >= GAME_W / 2) return;
+      if (this.joyId !== null || p.x >= GAME_W / 2 || this.registry.get('ended') || this.scene.isPaused('Level')) return;
       this.joyId = p.id; this.joyOrigin = { x: p.x, y: p.y }; this.joyCur = { x: p.x, y: p.y };
       this.joyRing.setPosition(p.x, p.y).setVisible(true); this.joyKnob.setPosition(p.x, p.y).setVisible(true);
     });
@@ -105,6 +105,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   private togglePause() {
+    if (this.registry.get('ended')) return;
     this.pause = onToggle(this.pause);
     this.applyPause();
   }
@@ -123,8 +124,12 @@ export class HudScene extends Phaser.Scene {
     const joy = joystickVector(this.joyOrigin, this.joyCur, JOY_R);
     const kl = Math.hypot(kx, ky) || 1;
     const move = joy.x || joy.y ? joy : { x: kx / kl, y: ky / kl };
-    const prev = this.registry.get('input') ?? { dash: false };
-    this.registry.set('input', { move, dash: this.dashPressed || prev.dash });
+    if (this.scene.isPaused('Level')) {
+      this.registry.set('input', { move: { x: 0, y: 0 }, dash: false }); // no queued dash on resume
+    } else {
+      const prev = this.registry.get('input') ?? { dash: false };
+      this.registry.set('input', { move, dash: this.dashPressed || prev.dash });
+    }
     this.dashPressed = false;
 
     const gs: GameState | undefined = this.registry.get('game');
