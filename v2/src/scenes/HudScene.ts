@@ -23,6 +23,7 @@ export class HudScene extends Phaser.Scene {
   private joyKnob!: Phaser.GameObjects.Arc;
   private bananaText!: Phaser.GameObjects.Text;
   private hearts!: Phaser.GameObjects.Graphics;
+  private timeText!: Phaser.GameObjects.Text;
   private dashSweep!: Phaser.GameObjects.Graphics;
   private splashBtn!: Phaser.GameObjects.Container;
   private pausedText!: Phaser.GameObjects.Text;
@@ -48,10 +49,11 @@ export class HudScene extends Phaser.Scene {
 
     // Top-left pills: bananas delivered/target, hearts.
     const pills = this.add.graphics();
-    pills.fillStyle(P.cream, 0.95).fillRoundedRect(24, 20, 150, 52, 26).fillRoundedRect(186, 20, 150, 52, 26);
+    pills.fillStyle(P.cream, 0.95).fillRoundedRect(24, 20, 150, 52, 26).fillRoundedRect(186, 20, 150, 52, 26).fillRoundedRect(348, 20, 130, 52, 26);
     this.add.image(58, 46, TEX.banana).setScale(1.2);
     this.bananaText = this.add.text(82, 46, '0/0', { ...FONT, fontSize: '26px' }).setOrigin(0, 0.5);
     this.hearts = this.add.graphics();
+    this.timeText = this.add.text(413, 46, '0:00', { ...FONT, fontSize: '26px' }).setOrigin(0.5);
 
     // Top-right pause button.
     const pause = this.add.container(GAME_W - 56, 46);
@@ -136,6 +138,8 @@ export class HudScene extends Phaser.Scene {
     const hs: HippoState | undefined = this.registry.get('hippo');
     if (gs) {
       this.bananaText.setText(`${gs.delivered}/${gs.target}`);
+      const t = Math.floor(gs.time), target = this.registry.get('level')?.timeTarget ?? Infinity;
+      this.timeText.setText(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`).setColor(gs.time > target ? '#d9534f' : '#3b3a36');
       this.hearts.clear();
       for (let i = 0; i < 3; i++) {
         const x = 214 + i * 40, y = 34, c = i < gs.hearts ? P.alert : P.creamDark;

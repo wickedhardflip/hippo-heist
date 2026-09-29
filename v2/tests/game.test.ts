@@ -22,3 +22,9 @@ it('dropped bananas can be restored', () => {
 it('loses at 0 hearts', () => {
   const s = caught(caught(caught(newGame(3, 2)))); expect(s.status).toBe('lost');
 });
+import { tick, markSpotted } from '../src/logic/game';
+it('tick only counts while playing', () => {
+  let s = tick(newGame(2, 1), 1.5); expect(s.time).toBeCloseTo(1.5);
+  s = deliver(pickup(s, 0)); s = tick(s, 5); expect(s.time).toBeCloseTo(1.5);
+});
+it('markSpotted sets the flag', () => { expect(markSpotted(newGame(1, 1)).spotted).toBe(true); });

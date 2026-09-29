@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { LevelData, nearestWaterPoint } from '../logic/level';
 import { HippoState, newHippo, stepHippo } from '../logic/hippo';
-import { GameState, newGame, pickup, deliver, caught, restoreDropped, PICK_RADIUS, FEED_RADIUS } from '../logic/game';
+import { GameState, newGame, pickup, deliver, caught, restoreDropped, tick, markSpotted, PICK_RADIUS, FEED_RADIUS } from '../logic/game';
 import { dist } from '../logic/geometry';
 import { drawTerrain } from '../render/terrain';
 import { TEX } from '../art/sprites';
@@ -74,6 +74,8 @@ export class LevelScene extends Phaser.Scene {
 
     this.registry.set('hippo', this.hs);
     for (const f of this.farmers) if (f.update(dt, this.hs)) this.events.emit('caught');
+    this.gs = tick(this.gs, dt);
+    if (this.farmers.some((f) => f.watcher.state === 'alert')) this.gs = markSpotted(this.gs);
     this.registry.set('game', this.gs);
     if (this.gs.status !== 'playing') this.showEnd(this.gs.status === 'won');
   }
