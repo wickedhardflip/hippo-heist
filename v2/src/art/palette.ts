@@ -1,0 +1,15 @@
+export const PALETTE = {
+  land: 0xa99a4c, landDark: 0x8e8140, landLight: 0xc2b25e,
+  bank: 0x8a4a33, bankDark: 0x6e3826,
+  water: 0x3f8f9a, waterLight: 0x6fb3ba, waterDeep: 0x2f7582,
+  path: 0xc9a86a, soil: 0x6b4630, soilDark: 0x553624,
+  plant: 0x4f7d4a, plantDark: 0x3c6339, plantLight: 0x6b9a5c,
+  banana: 0xf2c94c, bananaDark: 0xd9a92e,
+  hippo: 0x8c8196, hippoDark: 0x6f657a, hippoLight: 0xa79db0, hippoPink: 0xc98e8e,
+  barn: 0x9c4a3a, barnDark: 0x7d3a2e, roof: 0x8d8f8c, roofDark: 0x6f716e,
+  farmerShirt: 0xe6ddc8, farmerOveralls: 0x4d6a86, farmerHat: 0xd8b56a, skin: 0xd9a27e,
+  leopard: 0xd9a441, leopardDark: 0xb07f2c, spot: 0x4a3a2a,
+  cream: 0xf3ead3, creamDark: 0xd9ceb2, ink: 0x3b3a36,
+  cone: 0xfff6d8, alert: 0xd9534f, suspicious: 0xf2c94c,
+  bg: 0x6f6a3a,
+} as const;
