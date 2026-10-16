@@ -1,12 +1,12 @@
-import sys
+import sys,io
 src='src/'
-head=open(src+'head.html').read()
-js=''.join(open(src+f).read()+'\n' for f in ['core.js','audio.js','levels.js','world.js','actors.js','game.js','hud.js'])
+head=open(src+'head.html',encoding='utf-8').read()
+js=''.join(open(src+f,encoding='utf-8').read()+'\n' for f in ['core.js','audio.js','levels.js','world.js','actors.js','game.js','hud.js'])
 three_cdn='<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>'
 body=head+'\n'+three_cdn+'\n<script>\n(function(){\n"use strict";\n'+js+'\n})();\n</script>\n'
-open('game.html','w').write(body)
+open('game.html','w',encoding='utf-8',newline='\n').write(body)
 test='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'+body.replace(three_cdn,'<script src="three.min.js"></script>')+'</body></html>'
-open('test.html','w').write(test)
+open('test.html','w',encoding='utf-8',newline='\n').write(test)
 
 # index.html: the page GitHub Pages serves at https://wickedhardflip.github.io/hippo-heist/
 site='https://wickedhardflip.github.io/hippo-heist'
@@ -22,5 +22,5 @@ meta=f'''<meta charset="utf-8">
 <meta name="twitter:title" content="Hippo Heist" />
 <meta name="twitter:description" content="{desc}" />
 <meta name="twitter:image" content="{site}/preview.png" />'''
-open('index.html','w').write('<!doctype html>\n<html lang="en"><head>\n'+meta+'\n</head><body>\n'+body+'</body></html>\n')
+open('index.html','w',encoding='utf-8',newline='\n').write('<!doctype html>\n<html lang="en"><head>\n'+meta+'\n</head><body>\n'+body+'</body></html>\n')
 print(len(body))
