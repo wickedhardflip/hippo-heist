@@ -1,0 +1,267 @@
+<title>Hippo Heist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: full-bleed 3D viewport, HUD pinned to the four corners like a modern military shooter; menus are tactical slates over the live world */
+:root{
+  --ink:#e8ebe2; --dim:#9ba393; --faint:rgba(232,235,226,.18);
+  --olive:#9aa86a; --olive-deep:#2b3120; --slate:rgba(12,15,11,.72); --slate-solid:#10130e;
+  --alert:#ee4a2f; --warn:#f3a632; --water:#5fd0e0; --banana:#ffd23f; --good:#93e06c; --hide:#b8c2cc;
+  --display:'Barlow Condensed','Arial Narrow','Roboto Condensed',sans-serif;
+  --mono:'Share Tech Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;background:#0a0c09;color:var(--ink);overflow:hidden;font-family:var(--display);-webkit-font-smoothing:antialiased}
+#game{position:fixed;inset:0;overflow:hidden;background:#0a0c09;user-select:none;-webkit-user-select:none}
+#gl,#ov{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ov{pointer-events:none}
+.fx{position:absolute;inset:0;pointer-events:none}
+#fx-flash{background:rgba(255,40,20,.35);opacity:0;transition:opacity .25s}
+#fx-tint{opacity:0;transition:opacity .6s,background .6s}
+.lb{position:absolute;left:0;right:0;height:0;background:#000;transition:height .45s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:5}
+#lb-top{top:0}#lb-bot{bottom:0}
+.lb.on{height:11vh}
+#hud{position:absolute;inset:0;pointer-events:none;transition:opacity .4s}
+#hud.off{opacity:0}
+.hud{position:absolute;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.55),0 0 3px rgba(0,0,0,.6);letter-spacing:.04em}
+#obj{left:calc(18px + env(safe-area-inset-left,0px));top:calc(var(--mm,200px) + 40px);width:270px}
+#obj .hd{font-size:12px;font-weight:700;letter-spacing:.24em;color:var(--olive);margin-bottom:6px}
+.orow{display:flex;gap:9px;align-items:flex-start;font-size:16px;font-weight:600;text-transform:uppercase;line-height:1.15;margin-bottom:6px}
+.orow .bx{width:10px;height:10px;border:1.5px solid var(--ink);margin-top:3px;flex:none}
+.orow.done{color:var(--dim)}.orow.done .bx{background:var(--good);border-color:var(--good)}
+.orow.active .bx{border-color:var(--banana)}
+.meter{height:6px;background:rgba(255,255,255,.14);margin:5px 0 0;width:210px;position:relative;overflow:hidden}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--banana);width:0;transition:width .3s}
+.meter b{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.55)}
+.osub{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.06em;margin-top:2px;text-transform:none}
+#scorebox{right:calc(20px + env(safe-area-inset-right,0px));top:18px;text-align:right}
+#scorebox span{display:block;font-size:12px;letter-spacing:.24em;color:var(--olive);font-weight:700}
+#scorebox b{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+#mission{right:calc(20px + env(safe-area-inset-right,0px));top:78px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--dim)}
+#killfeed{right:calc(20px + env(safe-area-inset-right,0px));top:104px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.kf{background:rgba(8,10,7,.55);padding:3px 10px;font-size:15px;font-weight:600;text-transform:uppercase;display:flex;gap:10px;align-items:center;animation:kfin .18s ease-out;transition:opacity .6s}
+.kf .you{color:#8fd4ff}.kf .en{color:#ff8f78}.kf .ally{color:var(--banana)}
+.kf .w{font-family:var(--mono);font-size:11px;color:var(--ink);border:1px solid rgba(255,255,255,.3);padding:0 5px;letter-spacing:.08em}
+@keyframes kfin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+#notify{left:50%;top:84px;transform:translateX(-50%);text-align:center;opacity:0;transition:opacity .35s;width:min(90vw,640px)}
+#notify h2{margin:0;font-size:30px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+#notify p{margin:2px 0 0;font-size:15px;font-weight:600;letter-spacing:.12em;color:var(--banana);text-transform:uppercase}
+#notify.red h2{color:var(--alert)}#notify.green h2{color:var(--good)}
+#xp{left:calc(50% + 48px);top:calc(50% - 64px);display:flex;flex-direction:column;gap:2px}
+.xp{font-size:20px;font-weight:800;color:var(--banana);letter-spacing:.06em;animation:xpup 1.6s ease-out forwards;white-space:nowrap}
+.xp small{font-size:13px;color:var(--ink);margin-left:6px;letter-spacing:.14em}
+@keyframes xpup{0%{transform:translateY(8px);opacity:0}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-18px)}}
+#prompt{left:50%;top:63%;transform:translateX(-50%);font-size:18px;font-weight:600;background:rgba(8,10,7,.5);padding:6px 14px;letter-spacing:.06em;display:none;white-space:nowrap}
+.key{display:inline-block;min-width:20px;padding:0 6px;border:1.5px solid var(--ink);border-radius:3px;font-family:var(--mono);font-size:14px;text-align:center;margin:0 3px;line-height:20px}
+#zone{left:50%;bottom:132px;transform:translateX(-50%);color:var(--water);font-weight:700;letter-spacing:.22em;font-size:15px;display:none;white-space:nowrap}
+#zone.frenzy{color:#d58cff}
+#hint{left:50%;bottom:92px;transform:translateX(-50%);font-size:16px;color:var(--ink);background:rgba(8,10,7,.45);padding:5px 14px;opacity:0;transition:opacity .4s;text-align:center;max-width:min(92vw,720px)}
+#stat{left:calc(22px + env(safe-area-inset-left,0px));bottom:22px;width:250px}
+#stance{font-size:13px;letter-spacing:.24em;font-weight:700;color:var(--olive);margin-bottom:6px}
+.bar{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center;font-size:12px;letter-spacing:.18em;font-weight:700;margin-top:4px}
+.bar .t{height:6px;background:rgba(255,255,255,.14);position:relative;overflow:hidden}
+.bar .t i{position:absolute;left:0;top:0;bottom:0;width:100%}
+#hpb i{background:var(--ink)}#arb i{background:var(--hide)}#stb i{background:var(--olive)}
+#arrow-armor{display:none}
+#ammo{right:calc(24px + env(safe-area-inset-right,0px));bottom:20px;text-align:right}
+#ammo .lbl{font-size:12px;letter-spacing:.24em;color:var(--olive);font-weight:700}
+#ammo .cnt{font-size:56px;font-weight:700;line-height:.95;font-variant-numeric:tabular-nums}
+#ammo .cnt small{font-size:24px;color:var(--dim);font-weight:600}
+#ammo .cnt.full{color:var(--banana)}
+#equip{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;max-width:330px;margin-left:auto}
+.eq{border:1.5px solid rgba(255,255,255,.35);padding:3px 8px;font-size:12px;letter-spacing:.14em;font-weight:700;display:flex;gap:6px;align-items:center;background:rgba(8,10,7,.35);position:relative;overflow:hidden}
+.eq .k{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.eq .cd{position:absolute;left:0;bottom:0;height:2px;background:var(--ink)}
+.eq.pu{border-color:currentColor}
+#kcam{left:calc(24px + env(safe-area-inset-left,0px));top:13vh;font-size:15px;letter-spacing:.3em;font-weight:800;color:var(--alert);display:none;z-index:6}
+#kcam span{color:var(--ink);font-weight:600;letter-spacing:.18em;margin-left:10px}
+#insert{left:calc(28px + env(safe-area-inset-left,0px));bottom:150px;font-family:var(--mono);font-size:16px;line-height:1.55;letter-spacing:.06em;color:var(--ink)}
+#insert div{white-space:pre}
+#insert .big{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:.18em}
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 90% at 30% 20%,rgba(16,20,13,.55),rgba(5,6,4,.92));z-index:10;overflow-y:auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box}
+.screen[hidden]{display:none!important}
+.slate{width:min(1080px,100%);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start;margin:auto}
+@media (max-width:860px){.slate{grid-template-columns:minmax(0,1fr)}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.2em;color:var(--olive);text-transform:uppercase}
+h1.title{font-size:clamp(56px,9vw,112px);line-height:.86;margin:8px 0 6px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;text-wrap:balance}
+h1.title em{font-style:normal;color:var(--banana)}
+.tag{font-size:19px;color:var(--dim);font-weight:500;letter-spacing:.04em;max-width:52ch;line-height:1.35}
+.panel{background:var(--slate);border:1px solid rgba(255,255,255,.1);padding:16px 18px}
+.panel h3{margin:0 0 10px;font-size:13px;letter-spacing:.24em;color:var(--olive);font-weight:700;text-transform:uppercase}
+.missions{display:grid;gap:8px}
+.mcard{all:unset;cursor:pointer;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);transition:background .15s,border-color .15s}
+.mcard:hover,.mcard:focus-visible{background:rgba(154,168,106,.14);border-color:var(--olive)}
+.mcard.sel{border-color:var(--banana);background:rgba(255,210,63,.08)}
+.mcard .n{font-family:var(--mono);font-size:24px;color:var(--olive)}
+.mcard .nm{font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+.mcard .loc{font-size:14px;color:var(--dim);letter-spacing:.04em;margin-top:3px}
+.mcard .st{font-family:var(--mono);font-size:11px;color:var(--good);letter-spacing:.1em;text-align:right}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;border:1px solid rgba(255,255,255,.18);font-weight:700;letter-spacing:.14em;font-size:14px;text-transform:uppercase}
+.seg button:hover,.seg button:focus-visible{border-color:var(--olive)}
+.seg button.on{background:var(--ink);color:#0d100b;border-color:var(--ink)}
+.ctrls{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px;align-items:center}
+.ctrls .key{margin:0}
+.ctl summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ctl summary::-webkit-details-marker{display:none}
+.ctl summary h3{margin:0}.ctl summary h3::after{content:" +";color:var(--dim)}.ctl[open] summary h3::after{content:" –"}
+.binds{display:grid;gap:4px;margin-top:10px}
+.bind{display:grid;grid-template-columns:minmax(0,1fr) 96px 52px;gap:10px;align-items:center;font-size:15px}
+.bind .alt{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.bind.foot{grid-template-columns:auto minmax(0,1fr);margin-top:8px}
+.kbtn{all:unset;cursor:pointer;text-align:center;font-family:var(--mono);font-size:13px;padding:3px 6px;border:1.5px solid rgba(255,255,255,.35);border-radius:3px}
+.kbtn:hover,.kbtn:focus-visible{border-color:var(--ink)}
+.kbtn.wait{background:var(--ink);color:#0d100b;animation:kblink .8s infinite}
+@keyframes kblink{50%{opacity:.55}}
+#stb.winded{animation:kblink .5s infinite}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:12px;background:var(--banana);color:#15140a;font-weight:800;font-size:24px;letter-spacing:.2em;padding:12px 26px;text-transform:uppercase;transition:transform .1s,filter .15s}
+.btn:hover,.btn:focus-visible{filter:brightness(1.08);transform:translateY(-1px)}
+.btn:focus-visible,.mcard:focus-visible,.seg button:focus-visible,.ghost:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.ghost{all:unset;cursor:pointer;font-weight:700;letter-spacing:.18em;font-size:15px;padding:10px 16px;border:1px solid rgba(255,255,255,.25);text-transform:uppercase}
+.ghost:hover{border-color:var(--ink)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.stack{display:grid;gap:16px}
+.brief p{font-size:17px;line-height:1.45;color:var(--ink);margin:0 0 10px;max-width:60ch}
+.intel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:6px}
+.intel div{border-top:1px solid rgba(255,255,255,.15);padding-top:6px}
+.intel b{display:block;font-size:12px;letter-spacing:.2em;color:var(--olive)}
+.intel span{font-size:16px;font-weight:600;text-transform:uppercase}
+#mapcv{width:100%;aspect-ratio:1/1;max-width:100%;display:block;background:#1a1f15;border:1px solid rgba(255,255,255,.12)}
+.set{display:grid;grid-template-columns:120px 1fr 46px;gap:10px;align-items:center;font-size:14px;letter-spacing:.12em;font-weight:700;margin-bottom:8px;text-transform:uppercase}
+.set input[type=range]{width:100%;accent-color:var(--banana)}
+.set output{font-family:var(--mono);font-size:13px;color:var(--dim);text-align:right}
+.endwrap{width:min(720px,100%);margin:auto;text-align:center}
+.endwrap h1{font-size:clamp(48px,8vw,92px);margin:0;letter-spacing:.08em;font-weight:800;line-height:.9}
+.endwrap h1.fail{color:var(--alert)}.endwrap h1.win{color:var(--good)}
+.endwrap .quote{font-size:19px;color:var(--dim);margin:14px auto 22px;max-width:46ch;font-style:italic;line-height:1.4}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 24px;text-align:left}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.intel{grid-template-columns:minmax(0,1fr)}}
+.stats div{border-top:2px solid var(--olive);padding-top:6px}
+.stats b{display:block;font-size:30px;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:700}
+.note{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.04em;line-height:1.5}
+#clicklock{background:rgba(5,6,4,.55)}
+#clicklock .panel{text-align:center;font-size:22px;letter-spacing:.2em;font-weight:700;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){.kf,.xp{animation:none}.lb{transition:none}}
+@media (max-height:620px){#obj .osub{display:none}.orow{margin-bottom:2px}#stat{bottom:12px}#stat .bar{margin-top:2px}#ammo .cnt{font-size:38px}#insert{bottom:110px}}
+@media (max-width:1100px){#insert .big{font-size:19px}#insert{font-size:13px}#zone{bottom:150px;font-size:13px}}
+@media (max-width:700px){#obj{width:200px}#obj .meter{width:170px}.orow{font-size:14px}#ammo .cnt{font-size:40px}#stat{width:190px}}
+</style>
+
+<div id="game">
+  <canvas id="gl"></canvas>
+  <canvas id="ov"></canvas>
+  <div id="fx-tint" class="fx"></div>
+  <div id="fx-flash" class="fx"></div>
+  <div id="lb-top" class="lb"></div><div id="lb-bot" class="lb"></div>
+  <div id="hud" class="off">
+    <div id="obj" class="hud">
+      <div class="hd">OBJECTIVES</div>
+      <div id="o1" class="orow active"><div class="bx"></div><div>Gather bananas<div class="osub" id="o1s">0 carried</div></div></div>
+      <div id="o2" class="orow active"><div class="bx"></div><div><span id="o2t">Feed the leopard</span><div class="meter"><i id="strbar"></i><b style="left:25%"></b><b style="left:50%"></b><b style="left:75%"></b></div><div class="osub" id="o2s">Strength 0%</div></div></div>
+      <div id="o3" class="orow"><div class="bx"></div><div><span>Reach the river exfil</span><div class="osub" id="o3s">Locked until the leopard is free</div></div></div>
+    </div>
+    <div id="scorebox" class="hud"><span>SCORE</span><b id="score">0</b></div>
+    <div id="mission" class="hud"></div>
+    <div id="killfeed" class="hud"></div>
+    <div id="notify" class="hud"><h2></h2><p></p></div>
+    <div id="xp" class="hud"></div>
+    <div id="prompt" class="hud"></div>
+    <div id="zone" class="hud">WATER ADVANTAGE · BITES ARE LETHAL</div>
+    <div id="hint" class="hud"></div>
+    <div id="stat" class="hud">
+      <div id="stance">STANDING</div>
+      <div class="bar" id="hpb">HEALTH<div class="t"><i></i></div></div>
+      <div class="bar" id="arb">HIDE<div class="t"><i></i></div></div>
+      <div class="bar" id="stb">BURST<div class="t"><i></i></div></div>
+    </div>
+    <div id="ammo" class="hud">
+      <div class="lbl">BANANAS</div>
+      <div class="cnt" id="bcnt">0<small> / 5</small></div>
+      <div id="equip"></div>
+    </div>
+    <div id="insert" class="hud"></div>
+  </div>
+  <div id="kcam" class="hud">KILLCAM<span id="kcamt"></span></div>
+
+  <div id="menu" class="screen">
+    <div class="slate">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">Special Operations · River Division</div>
+          <h1 class="title">Hippo<br><em>Heist</em></h1>
+          <p class="tag">You are a river hippo. A leopard is held captive on the banana farms of the lower valley. Feed him until he is strong enough to break free, and make the farmers regret following you to the water.</p>
+        </div>
+        <div class="panel">
+          <h3>Select mission</h3>
+          <div class="missions" id="mlist"></div>
+        </div>
+        <div class="row"><button class="btn" id="b-brief">Briefing ›</button><span class="note" id="touchnote"></span></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <h3>Difficulty</h3>
+          <div class="seg" id="diffseg">
+            <button data-d="recruit">Recruit</button><button data-d="regular" class="on">Regular</button><button data-d="hardened">Hardened</button><button data-d="veteran">Veteran</button>
+          </div>
+          <div class="note" id="diffnote" style="margin-top:8px"></div>
+        </div>
+        <details class="panel ctl" id="ctlpanel">
+          <summary><h3>Controls</h3><span class="note">Mouse to look. Click to customize keys.</span></summary>
+          <div id="binds" class="binds"></div>
+        </details>
+        <div class="panel">
+          <h3>Settings</h3>
+          <div class="set"><label for="s-sens">Sensitivity</label><input type="range" id="s-sens" min="0.3" max="2.5" step="0.05" value="1"><output id="o-sens">1.00</output></div>
+          <div class="set"><label for="s-vol">Volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05" value="0.8"><output id="o-vol">80</output></div>
+          <div class="set"><label for="s-fov">Field of view</label><input type="range" id="s-fov" min="60" max="100" step="1" value="78"><output id="o-fov">78</output></div>
+          <div class="set"><span>Graphics</span><div class="seg" id="qseg"><button data-q="low">Low</button><button data-q="high" class="on">High</button><button data-q="ultra">Ultra</button></div><span></span></div>
+          <div class="set"><span>Killcam</span><div class="seg" id="kseg"><button data-k="1" class="on">On</button><button data-k="0">Off</button></div><span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="brief" class="screen" hidden>
+    <div class="slate">
+      <div class="stack">
+        <div>
+          <div class="eyebrow" id="br-eye"></div>
+          <h1 class="title" id="br-title" style="font-size:clamp(44px,7vw,84px)"></h1>
+        </div>
+        <div class="panel brief" id="br-text"></div>
+        <div class="intel" id="br-intel"></div>
+        <div class="row"><button class="btn" id="b-deploy">Deploy ›</button><button class="ghost" id="b-back">Back</button></div>
+      </div>
+      <div class="stack">
+        <canvas id="mapcv" width="560" height="560"></canvas>
+        <div class="note">Tactical map. North is up. Blue is water, where your bite is lethal. The star marks the leopard, the green ring marks exfil.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen" hidden>
+    <div class="panel" style="width:min(420px,100%);text-align:center">
+      <h3 style="font-size:28px;letter-spacing:.3em;color:var(--ink)">PAUSED</h3>
+      <div class="stack" style="justify-items:center">
+        <button class="btn" id="b-resume">Resume</button>
+        <div class="row" style="justify-content:center"><button class="ghost" id="b-restart">Restart mission</button><button class="ghost" id="b-quit">Main menu</button></div>
+        <details class="ctl" style="width:100%;text-align:left"><summary><h3 style="margin:0">Controls</h3></summary><div id="binds2" class="binds"></div></details>
+        <div class="set" style="width:100%"><label for="s-sens2">Sensitivity</label><input type="range" id="s-sens2" min="0.3" max="2.5" step="0.05" value="1"><output id="o-sens2">1.00</output></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="end" class="screen" hidden>
+    <div class="endwrap">
+      <div class="eyebrow" id="end-eye"></div>
+      <h1 id="end-title"></h1>
+      <p class="quote" id="end-quote"></p>
+      <div class="stats" id="end-stats"></div>
+      <div class="row" style="justify-content:center"><button class="btn" id="b-next">Next mission ›</button><button class="ghost" id="b-retry">Retry</button><button class="ghost" id="b-menu">Main menu</button></div>
+    </div>
+  </div>
+
+  <div id="clicklock" class="screen" hidden><div class="panel">Click to engage</div></div>
+</div>
