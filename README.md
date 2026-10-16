@@ -2,6 +2,8 @@
 
 **A first-person stealth heist where you are the hippo.**
 
+Version 2.0 ([changelog](CHANGELOG.md))
+
 The farmers of the lower valley have caught a leopard, and they are starving him in a cage. You are a river hippo with a plan: raid their banana groves, smuggle the fruit to the captive cat, and feed him until he is strong enough to break free. Then get out the way you came in, through the water, where no farmer can keep up and your bite is lethal.
 
 ### [▶ Play Hippo Heist in your browser](https://wickedhardflip.github.io/hippo-heist/)
@@ -106,6 +108,8 @@ Its source is preserved at the `v1-original` tag and on the `legacy-2d-original`
 The game ships as a single self-contained page. Source lives in `src/`, and `build.py` stitches it together:
 
     python3 build.py
+
+The version number lives in the `VERSION` file; `build.py` stamps it into the page title, a meta tag and the main menu.
 
 This writes `index.html`, the page GitHub Pages serves. It also writes `game.html` and `test.html` for local use (both git-ignored). `index.html` loads Three.js r128 from cdnjs; `test.html` expects a local `three.min.js` next to it.
 
