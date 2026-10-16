@@ -1,75 +1,52 @@
 # Hippo Heist
 
-A fun browser-based arcade game where you play as a mischievous hippo stealing bananas to feed a hungry leopard while avoiding angry farmers!
+You are a river hippo. A leopard is held captive on the banana farms of the lower valley. Feed him until he is strong enough to break free, and make the farmers regret following you to the water.
 
 ## Play Now
 
-Simply open `index.html` in any modern web browser - no installation required!
+https://wickedhardflip.github.io/hippo-heist/
 
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/6dd2d93f-944b-4524-8d9e-8a29a1be2b5c" />
+Runs in any modern desktop browser with WebGL. Keyboard and mouse required.
 
-## Gameplay
+<img width="640" alt="Hippo Heist gameplay" src="docs/screenshot.png" />
 
-You're a hippo with a mission: steal bananas from trees and feed them to a leopard. But watch out - the farmers aren't happy about your thievery!
+## Controls
 
-### Controls
+| Action | Default keys |
+|--------|--------------|
+| Move | WASD / Arrow keys |
+| Look | Mouse |
+| Burst sprint (hold) | Shift |
+| Sneak toggle | C / X |
+| Bite | Left mouse / Space |
+| Bellow lure | Q / Right mouse |
+| Feed leopard (hold) | E / F |
+| Mute | M |
 
-| Key | Action |
-|-----|--------|
-| Arrow Keys / WASD | Move |
-| Space | Pick up bananas / Feed leopard |
-| M | Toggle music/sound |
+All keys can be rebound from the Controls panel on the main menu.
 
-### Mechanics
+## Missions
 
-- **Collect Bananas** - Walk near banana trees and press Space to grab bananas (carry up to 5)
-- **Feed the Leopard** - Bring bananas to the leopard and press Space to feed it
-- **Avoid Farmers** - They patrol the area and will chase you if spotted
-- **Use Water** - Hide in water to escape farmers (they can't swim!)
-- **Beat the Clock** - Complete each level before time runs out
+| # | Operation | Location |
+|---|-----------|----------|
+| 1 | Chain Breaker | Lower Valley Plantation |
+| 2 | Hard Cargo | Cooper Packing Yard |
+| 3 | Black Rain | Monsoon Ridge Sawmill |
 
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/c107495f-fab7-4cda-bc29-028b08c706d1" />
+Four difficulty levels (Recruit, Regular, Hardened, Veteran), power-ups such as Golden Banana, Hot Pepper, Mud Camo and Recon Parrot, and farmers armed with everything from shovels to chainsaws.
 
-## Levels
+## Building
 
-| Level | Name | Challenge |
-|-------|------|-----------|
-| 1 | First Heist | Learn the basics with a caged leopard |
-| 2 | River Run | Navigate rivers and more farmers |
-| 3 | Wild Chase | The leopard roams free - farmers flee from it! |
-| 4 | The Hunt | The leopard hunts farmers - use it strategically! |
+The game ships as a single page. Source lives in `src/`; `build.py` concatenates it:
 
-## Features
+    python3 build.py
 
-- Retro pixel art graphics with modern polish
-- Synthesized 8-bit sound effects and music (no external files needed)
-- Particle effects, screen shake, and visual feedback
-- Progressive difficulty with unique level mechanics
-- Pure vanilla JavaScript - no dependencies
+This writes `index.html` (the page GitHub Pages serves), plus `game.html` and `test.html` for local use (both git-ignored). `test.html` expects a local `three.min.js` (Three.js r128) next to it; `index.html` loads Three.js from cdnjs.
 
-## Technical Details
+## Previous version
 
-Built with:
-- HTML5 Canvas for rendering
-- Web Audio API for synthesized retro sounds
-- Pure JavaScript (ES6+) - no frameworks or dependencies
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for technical documentation.
-
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/7971dfd9-5411-48c4-a415-bdbc1813a1c6" />
-
-## Browser Support
-
-Works in all modern browsers:
-- Chrome
-- Firefox
-- Safari
-- Edge
+The original 2D canvas game is preserved at the `v1-original` tag (also `v1.0.0`) and on the `legacy-2d-original` branch.
 
 ## License
 
-MIT License - feel free to use, modify, and share!
-
----
-
-*Have fun stealing bananas!*
+MIT License
