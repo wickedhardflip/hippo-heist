@@ -70,7 +70,7 @@ Each mission opens with a briefing and a tactical map showing the water, the leo
 
 ### Mission 04: Last Stop
 
-The hardest mission moves the heist from the farms into a village. The leopard has been sold to a circus and sits caged on a flatcar of the circus train at the station, and a departure clock counts down until it pulls out. Leopards eat meat, so here you steal hams and sausages from the market stalls, the butcher and the sausage carts instead of bananas.
+The hardest mission moves the heist from the farms into a village. The leopard has been sold to a circus and sits caged on a flatcar of the circus train at the station, and a departure clock counts down until it pulls out. The circus has bought every banana in the county for its elephants, so this time you steal hams and sausages from the market stalls, the butcher and the sausage carts instead.
 
 - **Village police.** Constables patrol the streets with batons and blow their whistles to bring every officer nearby. Two police dogs track you by scent, sergeants with net guns arrive at half strength and tangle you from range (bite to tear free), and the ringmaster comes for his star act with a long whip.
 - **Villagers.** Townsfolk walk the streets. If one sees you they scream for the police. You can eat them anywhere for health, but every few you eat brings another constable.

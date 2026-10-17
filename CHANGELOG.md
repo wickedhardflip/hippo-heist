@@ -6,7 +6,7 @@
 - A night-time village with streets, a market square, a church, a police station and houses you can walk into and hide in. Street lamps light you up.
 - New enemies: village constables with batons and whistles, police dogs, sergeants with net guns that tangle you at range, and the ringmaster with a long whip.
 - Villagers walk the streets. They scream for the police when they see you, and you can eat them anywhere for health.
-- The leopard eats meat in this mission: steal hams and sausages from the market stalls, the butcher and the sausage carts.
+- No bananas in this mission: the circus bought them all for its elephants, so you steal hams and sausages from the market stalls, the butcher and the sausage carts.
 - New power-up for the village: Smoked Ham, worth three cuts of meat.
 - Touch controls for phones and tablets: a floating move stick, drag to look, and on-screen Bite, Feed, Burst, Bellow, Sneak and pause buttons.
 - Touch devices skip pointer lock, try to go fullscreen in landscape, and default to Low graphics.
