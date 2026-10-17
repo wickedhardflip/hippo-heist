@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Online leaderboard: one board per mission, filterable and sortable by difficulty, with score posting after a win. Backed by a Cloudflare Worker and D1 database in `leaderboard/`.
+
 ## 2.0
 
 A full rewrite: Hippo Heist is now a 3D first-person stealth game.

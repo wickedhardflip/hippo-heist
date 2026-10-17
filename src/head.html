@@ -158,6 +158,22 @@ h1.title em{font-style:normal;color:var(--banana)}
 @media (max-height:620px){#obj .osub{display:none}.orow{margin-bottom:2px}#stat{bottom:12px}#stat .bar{margin-top:2px}#ammo .cnt{font-size:38px}#insert{bottom:110px}}
 @media (max-width:1100px){#insert .big{font-size:19px}#insert{font-size:13px}#zone{bottom:150px;font-size:13px}}
 @media (max-width:700px){#obj{width:200px}#obj .meter{width:170px}.orow{font-size:14px}#ammo .cnt{font-size:40px}#stat{width:190px}}
+/* leaderboard */
+.lbpanel{width:min(760px,100%);display:grid;gap:12px;margin:auto}
+.lbpanel h3{margin:0}
+.lbwrap{max-height:min(52vh,460px);overflow:auto;border-top:1px solid rgba(255,255,255,.12)}
+#lb-tab{width:100%;border-collapse:collapse;font-size:16px;font-variant-numeric:tabular-nums}
+#lb-tab th{position:sticky;top:0;background:var(--slate-solid);text-align:left;font-size:12px;letter-spacing:.2em;color:var(--olive);padding:8px 6px;cursor:pointer;user-select:none;text-transform:uppercase;white-space:nowrap}
+#lb-tab th.asc::after{content:' ▲'}#lb-tab th.desc::after{content:' ▼'}
+#lb-tab td{padding:6px;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap}
+#lb-tab td:nth-child(2){white-space:normal;word-break:break-word;font-weight:600}
+#lb-tab td:nth-child(3){font-weight:700;color:var(--banana)}
+.lbsub{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin:0 0 20px}
+.lbsub input{font:600 18px var(--display);letter-spacing:.06em;color:var(--ink);background:rgba(8,10,7,.6);border:1px solid rgba(255,255,255,.25);padding:9px 12px;width:min(260px,70vw)}
+.lbsub input:focus{outline:none;border-color:var(--banana)}
+.lbsub .note{flex-basis:100%}
+.ghost:disabled,.lbsub input:disabled{opacity:.45;cursor:default}
+@media (max-width:560px){#lb-tab th:nth-child(6),#lb-tab td:nth-child(6){display:none}}
 </style>
 
 <div id="game">
@@ -209,7 +225,7 @@ h1.title em{font-style:normal;color:var(--banana)}
           <h3>Select mission</h3>
           <div class="missions" id="mlist"></div>
         </div>
-        <div class="row"><button class="btn" id="b-brief">Briefing ›</button><span class="note" id="touchnote"></span></div>
+        <div class="row"><button class="btn" id="b-brief">Briefing ›</button><button class="ghost" id="b-board" hidden>Leaderboard</button><span class="note" id="touchnote"></span></div>
       </div>
       <div class="stack">
         <div class="panel">
@@ -271,7 +287,19 @@ h1.title em{font-style:normal;color:var(--banana)}
       <h1 id="end-title"></h1>
       <p class="quote" id="end-quote"></p>
       <div class="stats" id="end-stats"></div>
-      <div class="row" style="justify-content:center"><button class="btn" id="b-next">Next mission ›</button><button class="ghost" id="b-retry">Retry</button><button class="ghost" id="b-menu">Main menu</button></div>
+      <div id="lbsub" class="lbsub" hidden><input id="lb-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false"><button class="ghost" id="lb-send">Post score</button><div class="note" id="lb-msg"></div></div>
+      <div class="row" style="justify-content:center"><button class="btn" id="b-next">Next mission ›</button><button class="ghost" id="b-retry">Retry</button><button class="ghost" id="b-board2" hidden>Leaderboard</button><button class="ghost" id="b-menu">Main menu</button></div>
+    </div>
+  </div>
+
+  <div id="board" class="screen" hidden>
+    <div class="panel lbpanel">
+      <h3 style="font-size:28px;letter-spacing:.3em;color:var(--ink)">Leaderboard</h3>
+      <div class="seg" id="lb-mis"></div>
+      <div class="seg" id="lb-dif"></div>
+      <div class="lbwrap"><table id="lb-tab"><thead><tr><th data-s="rank">#</th><th data-s="name">Name</th><th data-s="score">Score</th><th data-s="time">Time</th><th data-s="difficulty">Difficulty</th><th data-s="at">Date</th></tr></thead><tbody></tbody></table></div>
+      <div class="note" id="lb-note"></div>
+      <div class="row"><button class="ghost" id="lb-back">Back</button></div>
     </div>
   </div>
 

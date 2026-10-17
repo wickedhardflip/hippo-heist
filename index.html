@@ -173,6 +173,22 @@ h1.title em{font-style:normal;color:var(--banana)}
 @media (max-height:620px){#obj .osub{display:none}.orow{margin-bottom:2px}#stat{bottom:12px}#stat .bar{margin-top:2px}#ammo .cnt{font-size:38px}#insert{bottom:110px}}
 @media (max-width:1100px){#insert .big{font-size:19px}#insert{font-size:13px}#zone{bottom:150px;font-size:13px}}
 @media (max-width:700px){#obj{width:200px}#obj .meter{width:170px}.orow{font-size:14px}#ammo .cnt{font-size:40px}#stat{width:190px}}
+/* leaderboard */
+.lbpanel{width:min(760px,100%);display:grid;gap:12px;margin:auto}
+.lbpanel h3{margin:0}
+.lbwrap{max-height:min(52vh,460px);overflow:auto;border-top:1px solid rgba(255,255,255,.12)}
+#lb-tab{width:100%;border-collapse:collapse;font-size:16px;font-variant-numeric:tabular-nums}
+#lb-tab th{position:sticky;top:0;background:var(--slate-solid);text-align:left;font-size:12px;letter-spacing:.2em;color:var(--olive);padding:8px 6px;cursor:pointer;user-select:none;text-transform:uppercase;white-space:nowrap}
+#lb-tab th.asc::after{content:' ▲'}#lb-tab th.desc::after{content:' ▼'}
+#lb-tab td{padding:6px;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap}
+#lb-tab td:nth-child(2){white-space:normal;word-break:break-word;font-weight:600}
+#lb-tab td:nth-child(3){font-weight:700;color:var(--banana)}
+.lbsub{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin:0 0 20px}
+.lbsub input{font:600 18px var(--display);letter-spacing:.06em;color:var(--ink);background:rgba(8,10,7,.6);border:1px solid rgba(255,255,255,.25);padding:9px 12px;width:min(260px,70vw)}
+.lbsub input:focus{outline:none;border-color:var(--banana)}
+.lbsub .note{flex-basis:100%}
+.ghost:disabled,.lbsub input:disabled{opacity:.45;cursor:default}
+@media (max-width:560px){#lb-tab th:nth-child(6),#lb-tab td:nth-child(6){display:none}}
 </style>
 
 <div id="game">
@@ -224,7 +240,7 @@ h1.title em{font-style:normal;color:var(--banana)}
           <h3>Select mission</h3>
           <div class="missions" id="mlist"></div>
         </div>
-        <div class="row"><button class="btn" id="b-brief">Briefing ›</button><span class="note" id="touchnote"></span></div>
+        <div class="row"><button class="btn" id="b-brief">Briefing ›</button><button class="ghost" id="b-board" hidden>Leaderboard</button><span class="note" id="touchnote"></span></div>
       </div>
       <div class="stack">
         <div class="panel">
@@ -286,7 +302,19 @@ h1.title em{font-style:normal;color:var(--banana)}
       <h1 id="end-title"></h1>
       <p class="quote" id="end-quote"></p>
       <div class="stats" id="end-stats"></div>
-      <div class="row" style="justify-content:center"><button class="btn" id="b-next">Next mission ›</button><button class="ghost" id="b-retry">Retry</button><button class="ghost" id="b-menu">Main menu</button></div>
+      <div id="lbsub" class="lbsub" hidden><input id="lb-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false"><button class="ghost" id="lb-send">Post score</button><div class="note" id="lb-msg"></div></div>
+      <div class="row" style="justify-content:center"><button class="btn" id="b-next">Next mission ›</button><button class="ghost" id="b-retry">Retry</button><button class="ghost" id="b-board2" hidden>Leaderboard</button><button class="ghost" id="b-menu">Main menu</button></div>
+    </div>
+  </div>
+
+  <div id="board" class="screen" hidden>
+    <div class="panel lbpanel">
+      <h3 style="font-size:28px;letter-spacing:.3em;color:var(--ink)">Leaderboard</h3>
+      <div class="seg" id="lb-mis"></div>
+      <div class="seg" id="lb-dif"></div>
+      <div class="lbwrap"><table id="lb-tab"><thead><tr><th data-s="rank">#</th><th data-s="name">Name</th><th data-s="score">Score</th><th data-s="time">Time</th><th data-s="difficulty">Difficulty</th><th data-s="at">Date</th></tr></thead><tbody></tbody></table></div>
+      <div class="note" id="lb-note"></div>
+      <div class="row"><button class="ghost" id="lb-back">Back</button></div>
     </div>
   </div>
 
@@ -1968,7 +1996,7 @@ function startMission(i) {
   G.state = 'playing'; G.t = 0; G.fade = 0;
   HIPPO.g.visible = false;
   $('hud').classList.remove('off');
-  hudReset(); const run = G.runId; insertion(L.insertion, run);
+  hudReset(); const run = G.runId; insertion(L.insertion, run); lbStartRun();
   setTimeout(() => { if (G.state === 'playing' && G.runId === run) { notify('Free the leopard', L.captiveLine); } }, 4200);
   setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(`Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
 }
@@ -2265,8 +2293,81 @@ function endMission(win) {
   $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, 'FARMERS EATEN'], [st.fed, 'BANANAS FED'], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('b-next').hidden = !(win && G.li < LEVELS.length - 1);
   $('b-retry').textContent = win ? 'Replay' : 'Retry';
-  $('end').hidden = false; refreshMissionList();
+  lbEnd(win); $('end').hidden = false; refreshMissionList();
   compMat.uniforms.sat.value = 0.9;
+}
+
+// ================= LEADERBOARD: online high scores (Cloudflare Worker + D1, see leaderboard/) =================
+// One board per mission; difficulty is a column you can filter and sort by. Only completed missions are posted.
+// LB_API is the deployed Worker URL. Empty hides every leaderboard control. ?lb=<url> overrides it for testing.
+const LB_API = (new URLSearchParams(location.search).get('lb') || '').replace(/\/$/, '') || '';
+const LB = { mission: 1, diff: 'all', sort: 'score', dir: -1, rows: [], prev: 'menu', reqId: 0 };
+const lbFetch = (path, opt) => fetch(LB_API + path, opt).then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
+const lbPost = (path, data) => lbFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+
+function lbInit() {
+  if (!LB_API) return;
+  $('b-board').hidden = false; $('b-board2').hidden = false;
+  $('b-board').onclick = () => { SFX.ui(); openBoard(L.id, 'menu'); };
+  $('b-board2').onclick = () => { SFX.ui(); openBoard(L.id, 'end'); };
+  $('lb-back').onclick = () => { SFX.ui(); if (LB.prev === 'end') { G.state = 'end'; showScreen('end'); } else { G.state = 'menu'; showScreen('menu'); } };
+  $('lb-mis').innerHTML = LEVELS.map(lv => `<button data-m="${lv.id}">0${lv.id} ${lv.op}</button>`).join('');
+  $('lb-mis').querySelectorAll('button').forEach(b => b.onclick = () => { SFX.ui(); LB.mission = +b.dataset.m; loadBoard(); });
+  $('lb-dif').innerHTML = ['all', ...Object.keys(DIFF)].map(d => `<button data-d="${d}">${d === 'all' ? 'All' : DIFF[d].label}</button>`).join('');
+  $('lb-dif').querySelectorAll('button').forEach(b => b.onclick = () => { SFX.ui(); LB.diff = b.dataset.d; loadBoard(); });
+  $('lb-tab').querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { const s = th.dataset.s; if (LB.sort === s) LB.dir = -LB.dir; else { LB.sort = s; LB.dir = s === 'name' || s === 'time' || s === 'rank' ? 1 : -1; } renderBoard(); });
+  $('lb-send').onclick = lbSubmit;
+  $('lb-name').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') lbSubmit(); });
+  try { $('lb-name').value = localStorage.getItem('hh-name') || ''; } catch (e) { }
+}
+// called by startMission: the server hands out a run id that the score is later posted against
+function lbStartRun() {
+  G.lbRun = null; if (!LB_API) return;
+  const run = G.runId;
+  lbPost('/run', { mission: L.id, difficulty: G.diff }).then(j => { if (G.runId === run) G.lbRun = j.run; }).catch(() => { });
+}
+// called by endMission
+function lbEnd(win) {
+  const box = $('lbsub'); box.hidden = !(LB_API && win);
+  if (box.hidden) return;
+  $('lb-send').disabled = false; $('lb-name').disabled = false;
+  $('lb-msg').textContent = G.lbRun ? 'Post your score to the leaderboard.' : 'Offline when the mission started, so this score cannot be posted.';
+  if (!G.lbRun) { $('lb-send').disabled = true; $('lb-name').disabled = true; }
+}
+function lbSubmit() {
+  if (!G.lbRun || $('lb-send').disabled) return;
+  const name = $('lb-name').value.trim(); try { localStorage.setItem('hh-name', name); } catch (e) { }
+  const st = G.stats, stats = {}; for (const k of ['eaten', 'fed', 'ko', 'dogs', 'spotted', 'power', 'bananas']) stats[k] = st[k] | 0;
+  $('lb-send').disabled = true; $('lb-msg').textContent = 'Posting...';
+  const run = G.lbRun;
+  lbPost('/scores', { run, name, score: G.score, time: Math.floor(G.t), stats })
+    .then(j => { G.lbRun = null; $('lb-name').disabled = true; $('lb-msg').textContent = `Posted as ${j.name}. Rank ${j.rank} on ${L.op}.`; })
+    .catch(e => { $('lb-send').disabled = false; $('lb-msg').textContent = 'Could not post: ' + e.message; });
+}
+function openBoard(mission, prev) {
+  LB.prev = prev; LB.mission = mission || 1; G.state = prev === 'end' ? 'end' : 'menu';
+  showScreen('board'); loadBoard();
+}
+function loadBoard() {
+  $('lb-mis').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.m === LB.mission));
+  $('lb-dif').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.d === LB.diff));
+  $('lb-note').textContent = 'Loading...'; LB.rows = []; renderBoard();
+  const id = ++LB.reqId;
+  lbFetch(`/scores?mission=${LB.mission}&difficulty=${LB.diff}&limit=100`)
+    .then(j => { if (id !== LB.reqId) return; LB.rows = j.scores.map((r, i) => ({ ...r, rank: i + 1 })); $('lb-note').textContent = LB.rows.length ? `Top ${LB.rows.length}. Tap a column to sort.` : 'No scores yet. Be the first.'; renderBoard(); })
+    .catch(e => { if (id === LB.reqId) $('lb-note').textContent = 'Could not load the leaderboard: ' + e.message; });
+}
+function renderBoard() {
+  const k = LB.sort, dir = LB.dir, order = Object.keys(DIFF);
+  const val = r => k === 'difficulty' ? order.indexOf(r.difficulty) : k === 'name' ? r.name.toLowerCase() : r[k];
+  const rows = LB.rows.slice().sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : a.rank - b.rank) * (x === y ? 1 : dir); });
+  $('lb-tab').querySelectorAll('th[data-s]').forEach(th => th.className = th.dataset.s === k ? (dir > 0 ? 'asc' : 'desc') : '');
+  const tb = $('lb-tab').tBodies[0]; tb.textContent = '';
+  for (const r of rows) {
+    const tr = tb.insertRow(), t = r.time | 0;
+    [r.rank, r.name, r.score, `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, (DIFF[r.difficulty] || {}).label || r.difficulty, new Date(r.at).toLocaleDateString()]
+      .forEach(v => { tr.insertCell().textContent = v; }); // textContent: player names are never parsed as HTML
+  }
 }
 
 // ================= HUD, overlay, menus, input, main loop =================
@@ -2601,7 +2702,7 @@ function refreshMissionList() {
   $('mlist').innerHTML = LEVELS.map((lv, i) => { const pr = G.progress[lv.id]; return `<button class="mcard${i === G.li ? ' sel' : ''}" data-i="${i}"><span class="n">0${lv.id}</span><span><span class="nm">${lv.op}</span><div class="loc">${lv.place} · ${lv.captiveLine}</div></span><span class="st">${pr && pr.done ? 'COMPLETE<br>' + pr.best : lv.clock}</span></button>`; }).join('');
   $('mlist').querySelectorAll('.mcard').forEach(b => b.onclick = () => { SFX.ui(); const i = +b.dataset.i; if (i !== G.li) { G.li = i; loadLevel(i); } refreshMissionList(); });
 }
-function showScreen(id) { ['menu', 'brief', 'pause', 'end', 'clicklock'].forEach(s => $(s).hidden = s !== id); }
+function showScreen(id) { ['menu', 'brief', 'pause', 'end', 'clicklock', 'board'].forEach(s => $(s).hidden = s !== id); }
 function openBrief() {
   G.state = 'brief'; showScreen('brief');
   $('br-eye').textContent = `MISSION 0${L.id} · ${L.clock} · ${DIFF[G.diff].label.toUpperCase()}`;
@@ -2635,6 +2736,7 @@ function bindUI() {
   camera.fov = G.settings.fov; camera.updateProjectionMatrix();
   $('qseg').querySelectorAll('button').forEach(b => { b.classList.toggle('on', b.dataset.q === RQ.quality); b.onclick = () => { SFX.ui(); RQ.quality = b.dataset.q; $('qseg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); resizeAll(); loadLevel(G.li); }; });
   $('kseg').querySelectorAll('button').forEach(b => { b.classList.toggle('on', (b.dataset.k === '1') === G.settings.killcam); b.onclick = () => { SFX.ui(); G.settings.killcam = b.dataset.k === '1'; $('kseg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); saveProgress(); }; });
+  lbInit();
   $('b-brief').onclick = () => { SFX.ui(); AU.init(); AU.setVolume(G.settings.vol); openBrief(); };
   $('b-back').onclick = () => { SFX.ui(); G.state = 'menu'; showScreen('menu'); };
   $('b-deploy').onclick = () => { SFX.ui(); deploy(); };
