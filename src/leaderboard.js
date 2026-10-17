@@ -1,7 +1,7 @@
 // ================= LEADERBOARD: online high scores (Cloudflare Worker + D1, see leaderboard/) =================
 // One board per mission; difficulty is a column you can filter and sort by. Only completed missions are posted.
-// LB_API is the deployed Worker URL. Empty hides every leaderboard control. ?lb=<url> overrides it for testing.
-const LB_API = (new URLSearchParams(location.search).get('lb') || '').replace(/\/$/, '') || '';
+// LB_API is the deployed Worker URL; setting it to '' hides every leaderboard control. ?lb=<url> overrides it for testing.
+const LB_API = (new URLSearchParams(location.search).get('lb') || '').replace(/\/$/, '') || 'https://hippo-heist-leaderboard.bri-wag.workers.dev';
 const LB = { mission: 1, diff: 'all', sort: 'score', dir: -1, rows: [], prev: 'menu', reqId: 0 };
 const lbFetch = (path, opt) => fetch(LB_API + path, opt).then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
 const lbPost = (path, data) => lbFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Touch controls for phones and tablets: a floating move stick, drag to look, and on-screen Bite, Feed, Burst, Bellow, Sneak and pause buttons.
+- Touch devices skip pointer lock, try to go fullscreen in landscape, and default to Low graphics.
+- Menus fit better on phones held sideways.
 - Online leaderboard: one board per mission, filterable and sortable by difficulty, with score posting after a win. Backed by a Cloudflare Worker and D1 database in `leaderboard/`.
 
 ## 2.0

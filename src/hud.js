@@ -345,6 +345,7 @@ function deploy() {
 }
 function requestLock() {
   const el = $('game');
+  if (G.touch) { G.noLock = true; goFull(); return; }
   if (!el.requestPointerLock) { G.noLock = true; return; }
   const fail = () => { if (!G.noLock && G.state === 'playing' && !document.pointerLockElement) { G.state = 'paused'; showScreen('clicklock'); if (AU.ctx) AU.ctx.suspend(); } };
   try { const r = el.requestPointerLock(); if (r && r.catch) r.catch(fail); } catch (e) { fail(); }
@@ -375,7 +376,7 @@ function bindUI() {
   $('b-next').onclick = () => { G.li = Math.min(LEVELS.length - 1, G.li + 1); loadLevel(G.li); openBrief(); };
   $('b-menu').onclick = () => { loadLevel(G.li); toMenu(); };
   $('clicklock').onclick = () => { showScreen(null); G.state = 'playing'; if (AU.ctx) AU.ctx.resume(); requestLock(); };
-  if (matchMedia('(pointer: coarse)').matches) $('touchnote').textContent = 'Keyboard and mouse required.';
+  if (G.touch) touchUI();
 }
 
 // ---------- input ----------
