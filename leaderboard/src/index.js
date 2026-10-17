@@ -9,7 +9,7 @@
 // the reported mission time cannot beat the real time since the run started, the score must be
 // plausible for that time, the leopard must actually have been fed, and each address is rate limited.
 
-const MISSIONS = { 1: { need: 16 }, 2: { need: 18 }, 3: { need: 20 } }; // bananas the leopard needs (src/levels.js)
+const MISSIONS = { 1: { need: 16 }, 2: { need: 18 }, 3: { need: 20 }, 4: { need: 20 } }; // food the leopard needs (src/levels.js); 4 is Last Stop from the village-mission branch
 const DIFFS = ['recruit', 'regular', 'hardened', 'veteran'];
 const NAME_MAX = 24;
 const MIN_TIME = 60, MAX_TIME = 3 * 3600;          // seconds a winning run can take
