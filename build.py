@@ -2,7 +2,7 @@ import sys,io
 src='src/'
 VERSION=open('VERSION').read().strip()  # single source of truth; replaces __VERSION__ in src/
 head=open(src+'head.html',encoding='utf-8').read()
-js=''.join(open(src+f,encoding='utf-8').read()+'\n' for f in ['core.js','audio.js','levels.js','world.js','actors.js','game.js','touch.js','hud.js'])
+js=''.join(open(src+f,encoding='utf-8').read()+'\n' for f in ['core.js','audio.js','levels.js','world.js','actors.js','game.js','touch.js','leaderboard.js','hud.js'])
 three_cdn='<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>'
 body=head+'\n'+three_cdn+'\n<script>\n(function(){\n"use strict";\n'+js+'\n})();\n</script>\n'
 body=body.replace('__VERSION__',VERSION)

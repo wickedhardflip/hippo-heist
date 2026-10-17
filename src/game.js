@@ -435,7 +435,7 @@ function startMission(i) {
   G.state = 'playing'; G.t = 0; G.fade = 0;
   HIPPO.g.visible = false;
   $('hud').classList.remove('off');
-  hudReset(); const run = G.runId; insertion(L.insertion, run);
+  hudReset(); const run = G.runId; insertion(L.insertion, run); lbStartRun();
   setTimeout(() => { if (G.state === 'playing' && G.runId === run) { notify('Free the leopard', L.captiveLine); } }, 4200);
   setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(`Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
 }
@@ -733,6 +733,6 @@ function endMission(win) {
   $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, 'FARMERS EATEN'], [st.fed, 'BANANAS FED'], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('b-next').hidden = !(win && G.li < LEVELS.length - 1);
   $('b-retry').textContent = win ? 'Replay' : 'Retry';
-  $('end').hidden = false; refreshMissionList();
+  lbEnd(win); $('end').hidden = false; refreshMissionList();
   compMat.uniforms.sat.value = 0.9;
 }

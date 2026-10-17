@@ -51,6 +51,10 @@ On a phone or tablet, on-screen controls appear during play: put your left thumb
 
 Every key can be rebound from the Controls panel on the main menu. Mouse sensitivity, volume, field of view, graphics quality and the killcam can all be set there too.
 
+## Leaderboard
+
+Each mission has an online leaderboard, which you can open from the main menu or after a win. When you complete a mission, you can post your score under any name you like. The board can be filtered and sorted by difficulty, score, time or name. The backend is a small Cloudflare Worker described in [leaderboard/](leaderboard/README.md).
+
 ## Missions
 
 <img width="100%" alt="Mission briefing for Chain Breaker with a tactical map of the plantation" src="docs/screenshots/briefing.jpg" />
