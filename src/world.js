@@ -2,6 +2,7 @@
 let L = LEVELS[0];
 let FLAT = [];
 let TREES = [];
+let HOUSES = [], FOOD_SLOTS = [], LAMPS = [];
 const worldRoot = new THREE.Group(); scene.add(worldRoot);
 const WATER_CORE = 13.4, ZONE_D = 19.5;
 
@@ -37,6 +38,9 @@ function waterPoint(spec) {
   const r = w.r - WATER_CORE + spec.off; return { x: w.x + Math.cos(spec.a) * r, z: w.z + Math.sin(spec.a) * r };
 }
 function inField(x, z, m = 0) { for (const f of L.fields) if (x > f.x0 - m && x < f.x1 + m && z > f.z0 - m && z < f.z1 + m) return f; return null; }
+function onStreet(x, z, m = 0) { if (!L.streets) return null; for (const f of L.streets) if (x > f.x0 - m && x < f.x1 + m && z > f.z0 - m && z < f.z1 + m) return f; return null; }
+// enterable houses: the interior rectangle the hippo can hide in
+function indoorOf(x, z, m = 0) { for (const h of HOUSES) if (x > h.x0 - m && x < h.x1 + m && z > h.z0 - m && z < h.z1 + m) return h; return null; }
 
 // ---------- lights & sky ----------
 const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7); scene.add(hemi);
@@ -46,6 +50,7 @@ const sc = sun.shadow.camera; sc.left = -60; sc.right = 60; sc.top = 60; sc.bott
 scene.add(sun); scene.add(sun.target);
 function setShadowRes() { const s = RQ.quality === 'low' ? 1024 : RQ.quality === 'high' ? 2048 : 4096; if (sun.shadow.mapSize.x !== s) { sun.shadow.mapSize.set(s, s); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
 const LANTERNS = []; for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffb05a, 0, 14, 2); scene.add(l); LANTERNS.push(l); }
+const LAMPLIGHTS = []; for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffc879, 0, 17, 2); scene.add(l); LAMPLIGHTS.push(l); }
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, cloudCol: { value: new THREE.Color() }, cloud: { value: 0.4 }, time: { value: 0 }, night: { value: 0 }, flash: { value: 0 } },
@@ -192,13 +197,31 @@ const bunchGeo = (() => {
   return B.geometry();
 })();
 const bunchMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, emissive: 0x332600, emissiveIntensity: 0.6 });
+// a smoked ham and a string of sausages hanging from a hook, same footprint as a banana bunch
+const meatGeo = (() => {
+  const B = new Builder();
+  B.add(GEO.cyl8, 0x6a5a40, M(0, 0.45, 0, 0, 0, 0, 0.02, 0.7, 0.02));
+  B.add(GEO.sph, 0x8e3b22, M(0, -0.12, 0, 0.25, 0, 0, 0.32, 0.46, 0.3)); B.add(GEO.sph, 0xa84a2c, M(0, 0.1, 0.02, 0.25, 0, 0, 0.24, 0.3, 0.24));
+  B.add(GEO.cyl, 0xd88a7c, M(0, -0.5, 0.1, 0.25, 0, 0, 0.2, 0.04, 0.2)); B.add(GEO.cyl8, 0xeee4cc, M(0, 0.3, -0.06, 0.25, 0, 0, 0.05, 0.3, 0.05));
+  for (let i = 0; i < 4; i++) B.add(GEO.sph, i % 2 ? 0xb4563a : 0xa04a30, M(0.3, 0.16 - i * 0.2, 0.05, 0, 0, 0.15, 0.07, 0.11, 0.07));
+  return B.geometry();
+})();
+const meatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, emissive: 0x2a0c04, emissiveIntensity: 0.7 });
+const SIGNTEX = {};
+function signMesh(text, w, h, bg = '#2a2018', fg = '#f2e2b6') {
+  const k = text + bg + fg;
+  if (!SIGNTEX[k]) SIGNTEX[k] = canvasTex(512, Math.round(512 * h / w), (g, cw, ch) => { g.fillStyle = bg; g.fillRect(0, 0, cw, ch); g.strokeStyle = fg; g.lineWidth = ch * 0.06; g.strokeRect(ch * 0.08, ch * 0.08, cw - ch * 0.16, ch - ch * 0.16); g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; let fs = ch * 0.5; g.font = `800 ${fs}px Georgia,serif`; while (g.measureText(text).width > cw * 0.86 && fs > 8) { fs -= 2; g.font = `800 ${fs}px Georgia,serif`; } g.fillText(text, cw / 2, ch * 0.54); }, false);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: SIGNTEX[k], roughness: 0.8, emissive: 0xffffff, emissiveMap: SIGNTEX[k], emissiveIntensity: L.sky.night ? 0.35 : 0 }));
+  m.receiveShadow = true; return m;
+}
+function placeSign(P, text, lx, ly, lz, w, h, bg, fg, face = 0) { const m = signMesh(text, w, h, bg, fg); const [wx, wz] = rotXZ(P, lx, lz); m.position.set(wx, P.y + ly, wz); m.rotation.y = (P.ry || 0) + face; worldRoot.add(m); return m; }
 
 // ---------- props ----------
 function rotXZ(P, lx, lz) { const c = Math.cos(P.ry || 0), s = Math.sin(P.ry || 0); return [P.x + lx * c + lz * s, P.z - lx * s + lz * c]; }
 function padd(B, geo, color, P, lx, ly, lz, sx, sy, sz, rx = 0, ry = 0, rz = 0) { const [wx, wz] = rotXZ(P, lx, lz); B.add(geo, color, M(wx, P.y + ly, wz, rx, ry + (P.ry || 0), rz, sx, sy, sz)); }
 function pbox(P, lx, lz, hx, hz, tall = true) { const [wx, wz] = rotXZ(P, lx, lz); const sw = Math.abs(Math.sin(P.ry || 0)) > 0.5; COL.addBox(wx, wz, sw ? hz : hx, sw ? hx : hz, tall); }
 function pcirc(P, lx, lz, r) { const [wx, wz] = rotXZ(P, lx, lz); COL.addCircle(wx, wz, r); }
-const PROP_PADS = { hay: [2.2, 2.2], crates: [2.6, 2.6], barrels: [1.5, 1.5], lamp: [0.8, 0.8], scarecrow: [1, 1], farmhouse: [9, 8], barn: [9, 12], silo: [4, 4], shed: [4, 4], packing: [14, 10], sawmill: [12, 9], watertower: [4, 4], tractor: [3, 3], pickup: [3, 3.5], well: [2, 2], outhouse: [2, 2], logs: [5, 3] };
+const PROP_PADS = { house: [6, 5], shop: [7, 6], police: [9, 6], station: [10, 5], church: [6, 9], stall: [2.5, 1.5], rack: [2, 1.2], cart: [1.6, 1.6], fountain: [3.2, 3.2], hay: [2.2, 2.2], crates: [2.6, 2.6], barrels: [1.5, 1.5], lamp: [0.8, 0.8], scarecrow: [1, 1], farmhouse: [9, 8], barn: [9, 12], silo: [4, 4], shed: [4, 4], packing: [14, 10], sawmill: [12, 9], watertower: [4, 4], tractor: [3, 3], pickup: [3, 3.5], well: [2, 2], outhouse: [2, 2], logs: [5, 3] };
 const PROPS = {
   farmhouse(B, P, G) {
     const W = 14, D = 10, H = 4.4;
@@ -276,7 +299,99 @@ const PROPS = {
     padd(L.sky.night ? G : B, GEO.box, 0xffcf80, P, 0, H - 0.4, 0, 2, 0.25, 0.25); for (const lx of [-0.8, 0.8]) padd(B, GEO.box, 0x2a2a2a, P, lx, H - 0.1, 0, 0.04, 0.4, 0.04);
   },
   logs(B, P) { for (let r = 0; r < 3; r++) for (let i = 0; i < 4 - r; i++) padd(B, GEO.cyl, pick([0x6a4a2a, 0x7a5a36, 0x5e4026]), P, 0, 0.5 + r * 0.85, (i - (3 - r) / 2) * 1.0, 0.5, 8, 0.5, 0, 0, Math.PI / 2); pbox(P, 0, 0, 4, 2.2, false); },
-  lamp(B, P, G) { padd(B, GEO.cyl8, 0x3a3a3a, P, 0, 3, 0, 0.1, 6, 0.1); padd(B, GEO.box, 0x3a3a3a, P, 0.5, 6, 0, 1.2, 0.1, 0.1); padd(L.sky.night || L.id === 2 ? G : B, GEO.cone, 0xfff3c8, P, 1.0, 5.85, 0, 0.3, 0.3, 0.3, Math.PI); pcirc(P, 0, 0, 0.25); },
+  lamp(B, P, G) { if (L.town) { const [hx, hz] = rotXZ(P, 1.0, 0); LAMPS.push({ x: hx, z: hz, y: P.y + 5.6 }); } padd(B, GEO.cyl8, 0x3a3a3a, P, 0, 3, 0, 0.1, 6, 0.1); padd(B, GEO.box, 0x3a3a3a, P, 0.5, 6, 0, 1.2, 0.1, 0.1); padd(L.sky.night || L.id === 2 ? G : B, GEO.cone, 0xfff3c8, P, 1.0, 5.85, 0, 0.3, 0.3, 0.3, Math.PI); pcirc(P, 0, 0, 0.25); },
+  // ----- village -----
+  house(B, P, G) {
+    const W = 10, D = 8, H = 3.6, th = 0.35, gap = 3.2, seg = (W - gap) / 2;
+    const wall = pick([0xd8cdb2, 0xcab79a, 0xe0d6c4, 0xb9a487, 0xc9b9a8, 0xa9b0a0]), roof = pick([0x6a3426, 0x4a3a34, 0x5a2a22, 0x3c4048, 0x6e4a2e]), trim = 0x5a4632;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.12, 0, W + 0.3, 0.3, D + 0.3);
+    padd(B, GEO.box, 0x6a5038, P, 0, 0.3, 0, W - th * 2, 0.06, D - th * 2);
+    padd(B, GEO.box, 0x7a3a2e, P, 0, 0.34, -0.5, 3.6, 0.03, 2.4);
+    padd(B, GEO.box, wall, P, 0, H / 2, -D / 2 + th / 2, W, H, th);
+    for (const s of [-1, 1]) { padd(B, GEO.box, wall, P, s * (W / 2 - th / 2), H / 2, 0, th, H, D); padd(B, GEO.box, wall, P, s * (gap / 2 + seg / 2), H / 2, D / 2 - th / 2, seg, H, th); }
+    padd(B, GEO.box, wall, P, 0, H - 0.4, D / 2 - th / 2, gap, 0.8, th);
+    for (const s of [-1, 1]) padd(B, GEO.box, trim, P, s * (gap / 2 + 0.08), (H - 0.8) / 2, D / 2 + 0.02, 0.16, H - 0.8, 0.1);
+    padd(B, GEO.prism, roof, P, 0, H + 0.5 * 2.2, 0, W + 1.0, 2.2, (D / 2 + 0.7) / 0.866);
+    padd(B, GEO.box, 0x6a5a4c, P, W / 2 - 2, H + 2.2, -1.2, 0.8, 2.2, 0.8);
+    const winC = L.sky.night ? 0xffc46a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) { padd(wg, GEO.box, winC, P, s * 3.3, 2.1, D / 2 + 0.03, 1.4, 1.1, 0.06); padd(B, GEO.box, 0xf1ece0, P, s * 3.3, 2.1, D / 2 + 0.01, 1.6, 1.3, 0.04); padd(wg, GEO.box, winC, P, s * (W / 2 + 0.03), 2.1, -1.5, 0.06, 1.1, 1.4); }
+    padd(wg, GEO.box, winC, P, 0, 2.1, -D / 2 - 0.03, 1.4, 1.1, 0.06);
+    pbox(P, 0, -D / 2 + th / 2, W / 2, th / 2); for (const s of [-1, 1]) { pbox(P, s * (W / 2 - th / 2), 0, th / 2, D / 2); pbox(P, s * (gap / 2 + seg / 2), D / 2 - th / 2, seg / 2, th / 2); }
+    const c = [rotXZ(P, -(W / 2 - th), -(D / 2 - th)), rotXZ(P, W / 2 - th, D / 2 - th)];
+    const door = rotXZ(P, 0, D / 2 - th / 2), out = rotXZ(P, 0, D / 2 + 2.6), inn = rotXZ(P, 0, D / 2 - 2.4);
+    HOUSES.push({ x0: Math.min(c[0][0], c[1][0]), x1: Math.max(c[0][0], c[1][0]), z0: Math.min(c[0][1], c[1][1]), z1: Math.max(c[0][1], c[1][1]), door: { x: door[0], z: door[1] }, out: { x: out[0], z: out[1] }, inn: { x: inn[0], z: inn[1] } });
+  },
+  shop(B, P, G) {
+    const W = 12, D = 9, H = 5.2, col = P.col || 0x6a4a3a;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.15, 0, W + 0.4, 0.3, D + 0.4);
+    padd(B, GEO.box, 0xd2c6ac, P, 0, H / 2, 0, W, H, D); padd(B, GEO.box, col, P, 0, 1.6, D / 2 + 0.03, W, 3.2, 0.06);
+    padd(B, GEO.box, 0x4a3a30, P, 0, H + 0.35, 0, W + 0.6, 0.7, D + 0.6);
+    for (let i = -5; i <= 5; i++) padd(B, GEO.box, i % 2 ? 0xe8e0cc : col, P, i * 1.1, 3.5, D / 2 + 0.9, 1.1, 0.08, 1.8, -0.35);
+    const winC = L.sky.night ? 0xffd28a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) padd(wg, GEO.box, winC, P, s * 3.2, 1.7, D / 2 + 0.07, 3.2, 1.8, 0.05);
+    padd(B, GEO.box, 0x2a1e18, P, 0, 1.25, D / 2 + 0.07, 1.4, 2.5, 0.06);
+    if (P.sign) placeSign(P, P.sign, 0, 4.4, D / 2 + 0.06, 7, 1.0, '#1e1a16', '#f0d890');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  police(B, P, G) {
+    const W = 16, D = 10, H = 5.4;
+    padd(B, GEO.box, 0x5a5a58, P, 0, 0.2, 0, W + 0.6, 0.4, D + 0.6);
+    padd(B, GEO.box, 0x8a5a44, P, 0, H / 2, 0, W, H, D); padd(B, GEO.box, 0x3a3e46, P, 0, H + 0.3, 0, W + 0.5, 0.6, D + 0.5);
+    padd(B, GEO.box, 0x1e2838, P, 0, 1.3, D / 2 + 0.04, 1.8, 2.6, 0.06); padd(B, GEO.box, 0xe6e0d0, P, 0, 2.75, D / 2 + 0.3, 3, 0.15, 0.7);
+    padd(L.sky.night ? G : B, GEO.box, 0x6ab0ff, P, 0, 3.4, D / 2 + 0.35, 0.5, 0.5, 0.5);
+    const winC = L.sky.night ? 0xfff0c8 : 0x24323c, wg = L.sky.night ? G : B;
+    for (const x of [-6, -3.2, 3.2, 6]) { padd(wg, GEO.box, winC, P, x, 2.2, D / 2 + 0.04, 1.4, 1.4, 0.05); padd(wg, GEO.box, winC, P, x, 4.2, D / 2 + 0.04, 1.4, 1.0, 0.05); }
+    placeSign(P, 'POLICE', 0, 4.4, D / 2 + 0.06, 4.4, 0.9, '#16243c', '#e8eef8');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  station(B, P, G) {
+    const W = 18, D = 7, H = 4.4;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.2, 0, W + 0.4, 0.4, D + 0.4);
+    padd(B, GEO.box, 0xc8b48c, P, 0, H / 2, 0, W, H, D); padd(B, GEO.prism, 0x4a3a34, P, 0, H + 0.5 * 1.8, 0, W + 0.8, 1.8, (D / 2 + 0.5) / 0.866);
+    const winC = L.sky.night ? 0xffd28a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const x of [-6, -2, 2, 6]) padd(wg, GEO.box, winC, P, x, 2, D / 2 + 0.04, 1.6, 1.8, 0.05);
+    padd(B, GEO.box, 0x4a3a2c, P, 0, H - 0.1, D / 2 + 3.4, W + 6, 0.18, 6.4, 0.08);
+    for (const x of [-11, -5.5, 0, 5.5, 11]) { padd(B, GEO.cyl8, 0x2e3a2e, P, x, (H - 0.2) / 2, D / 2 + 6, 0.12, H - 0.2, 0.12); pcirc(P, x, D / 2 + 6, 0.25); }
+    padd(B, GEO.box, 0xe8e2d0, P, 0, H + 0.9, D / 2 + 0.3, 1.2, 1.2, 0.2); padd(B, GEO.box, 0x222222, P, 0, H + 0.9, D / 2 + 0.42, 0.06, 0.45, 0.02);
+    placeSign(P, 'MILLBROOK JUNCTION', 0, H - 0.75, D / 2 + 6.35, 7, 0.8, '#1e2a20', '#f0e6c0');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  church(B, P, G) {
+    const W = 10, D = 16, H = 6.5;
+    padd(B, GEO.box, 0x9a968c, P, 0, H / 2, 0, W, H, D); padd(B, GEO.prism, 0x3c3c44, P, 0, H + 0.5 * 3.4, 0, D + 0.6, 3.4, (W / 2 + 0.6) / 0.866, 0, Math.PI / 2);
+    padd(B, GEO.box, 0x8e8a80, P, 0, 7, D / 2 + 1.6, 4.2, 14, 3.4); padd(B, GEO.cone, 0x3c3c44, P, 0, 14 + 3, D / 2 + 1.6, 3.0, 6, 3.0);
+    const winC = L.sky.night ? 0xffb860 : 0x2a3848, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) for (const z of [-5, -1.5, 2, 5.5]) padd(wg, GEO.box, winC, P, s * (W / 2 + 0.03), 3.4, z, 0.06, 2.6, 1.0);
+    padd(wg, GEO.box, winC, P, 0, 10.5, D / 2 + 3.32, 1.2, 1.6, 0.06); padd(B, GEO.box, 0x3a2a22, P, 0, 1.4, D / 2 + 3.32, 1.6, 2.8, 0.06);
+    pbox(P, 0, 0, W / 2, D / 2); pbox(P, 0, D / 2 + 1.6, 2.1, 1.7);
+  },
+  stall(B, P, G) {
+    const col = pick([0xb8322a, 0x2e6a8a, 0x3a7a3a, 0xc88a2a]);
+    for (const x of [-1.8, 1.8]) for (const z of [-0.9, 1.3]) padd(B, GEO.box, 0x5a4632, P, x, 1.3, z, 0.12, 2.6, 0.12);
+    padd(B, GEO.box, 0x7a5e40, P, 0, 0.5, -0.2, 3.6, 1.0, 1.2); padd(B, GEO.box, 0x9a7a54, P, 0, 1.02, -0.2, 3.8, 0.06, 1.4);
+    for (let i = 0; i < 6; i++) padd(B, GEO.box, i % 2 ? 0xeee6d4 : col, P, -1.75 + i * 0.7, 2.75, 0.25, 0.7, 0.06, 2.8, -0.22);
+    padd(B, GEO.box, 0x4a3a2a, P, 0, 2.52, 1.3, 3.8, 0.08, 0.08);
+    for (let i = 0; i < 3; i++) padd(B, GEO.sph, pick([0x8e3b22, 0xa04a30, 0xd8c08a]), P, -1 + i, 1.15, -0.3, 0.22, 0.16, 0.2);
+    pbox(P, 0, -0.2, 1.9, 0.7, false);
+    for (const x of [-0.9, 0.9]) { const [wx, wz] = rotXZ(P, x, 1.3); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 2.62, bunch: null }); }
+  },
+  rack(B, P) {
+    for (const x of [-2, 2]) { padd(B, GEO.box, 0x4a3a2a, P, x, 1.5, 0, 0.14, 3, 0.14); pcirc(P, x, 0, 0.2); }
+    padd(B, GEO.box, 0x4a3a2a, P, 0, 2.95, 0, 4.3, 0.12, 0.12); padd(B, GEO.prism, 0x5a4a3a, P, 0, 3.3, 0, 4.8, 0.5, 0.7);
+    for (const x of [-1.2, 0, 1.2]) { const [wx, wz] = rotXZ(P, x, 0); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 3.05, bunch: null }); }
+  },
+  cart(B, P) {
+    padd(B, GEO.box, 0xb8322a, P, 0, 1.1, 0, 2.4, 0.9, 1.3); padd(B, GEO.box, 0xe8d8a8, P, 0, 1.6, 0, 2.5, 0.08, 1.4);
+    for (const s of [-1, 1]) padd(B, GEO.cyl, 0x2a2a2a, P, s * 0.7, 0.5, 0.7, 0.5, 0.08, 0.5, Math.PI / 2, 0, 0);
+    for (const x of [-1.1, 1.1]) padd(B, GEO.box, 0x5a4632, P, x, 2.2, 0, 0.08, 2.2, 0.08); padd(B, GEO.box, 0xe8d8a8, P, 0, 3.3, 0, 2.8, 0.06, 1.8);
+    pcirc(P, 0, 0, 1.3);
+    for (const x of [-0.6, 0.6]) { const [wx, wz] = rotXZ(P, x, 0.75); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 3.4, bunch: null }); }
+  },
+  fountain(B, P) {
+    padd(B, GEO.cyl, 0x8a8478, P, 0, 0.4, 0, 2.6, 0.8, 2.6); padd(B, GEO.cyl, 0x2a4a58, P, 0, 0.78, 0, 2.3, 0.04, 2.3);
+    padd(B, GEO.cyl8, 0x9a948a, P, 0, 1.6, 0, 0.3, 1.8, 0.3); padd(B, GEO.cyl, 0x8a8478, P, 0, 2.5, 0, 1.0, 0.2, 1.0);
+    pcirc(P, 0, 0, 2.7);
+  },
   fence(B, P) {
     const dx = P.x1 - P.x0, dz = P.z1 - P.z0, len = Math.hypot(dx, dz), n = Math.ceil(len / 3), a = Math.atan2(dx, dz);
     for (let i = 0; i <= n; i++) { const x = P.x0 + dx * i / n, z = P.z0 + dz * i / n, y = groundH(x, z); B.add(GEO.box, 0x6b5636, M(x, y + 0.6, z, 0, a, 0, 0.16, 1.4, 0.16)); }
@@ -284,13 +399,22 @@ const PROPS = {
   }
 };
 
+// railway along the north edge of the village, with a trestle bridge over the river
+function buildRail() {
+  const B = new Builder(), z0 = L.captive.z, y = L.base + 0.08;
+  for (let x = -WORLD - 40; x < WORLD + 40; x += 1.1) B.add(GEO.box, 0x3e3026, M(x, y, z0, 0, 0, 0, 0.32, 0.16, 2.8));
+  for (const s of [-0.72, 0.72]) B.add(GEO.box, 0x8a8a8a, M(0, y + 0.16, z0 + s, 0, 0, 0, 2 * WORLD + 80, 0.14, 0.1));
+  for (let x = -WORLD - 10; x < WORLD + 10; x += 4) { const g = groundH(x, z0); if (g > y - 0.6) continue; for (const s of [-1.3, 1.3]) B.add(GEO.box, 0x4a3a2a, M(x, (g + y) / 2 - 0.3, z0 + s, 0, 0, 0, 0.35, y - g + 0.6, 0.35)); B.add(GEO.box, 0x4a3a2a, M(x, y - 0.25, z0, 0, 0, 0, 0.3, 0.3, 3.2)); }
+  worldRoot.add(B.mesh(propMat));
+}
+
 const MTN_GEO = (() => { const g = new THREE.IcosahedronGeometry(1, 3); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i); const n = 0.75 + fbm(x * 2 + 5, z * 2 + y) * 0.6; y = Math.max(0, y) * n; p.setXYZ(i, x * (0.9 + n * 0.15), y, z * (0.9 + n * 0.15)); } g.computeVertexNormals(); g.userData.keep = true; return g; })();
 // ---------- build level ----------
 const TREE_MESH = { trunks: null, leaves: null };
 function disposeTree(o) { o.traverse(c => { if (c.geometry && !c.geometry.userData.keep) c.geometry.dispose(); }); }
 function clearWorld() {
   for (const c of [...worldRoot.children]) { worldRoot.remove(c); disposeTree(c); }
-  COL.reset(); TREES = []; PT.clear();
+  COL.reset(); TREES = []; HOUSES = []; FOOD_SLOTS = []; LAMPS = []; PT.clear();
 }
 [leafGeo, trunkGeo, bladeGeo, reedGeo, bunchGeo].forEach(g => g.userData.keep = true);
 Object.values(GEO).forEach(g => g.userData.keep = true);
@@ -301,7 +425,9 @@ function buildWorld(level) {
   FLAT = [];
   for (const p of L.props) { const pad = PROP_PADS[p.t]; if (!pad) continue; const sw = Math.abs(Math.sin(p.ry || 0)) > 0.5; FLAT.push({ x: p.x, z: p.z, hx: sw ? pad[1] : pad[0], hz: sw ? pad[0] : pad[1], h: 0 }); }
   const cp = L.captive; FLAT.push({ x: cp.x, z: cp.z, hx: 11, hz: 11, h: 0 });
-  FLAT.forEach(f => { f.h = 0; const prev = FLAT; FLAT = []; f.h = rawGround(f.x, f.z); FLAT = prev; f.h = Math.max(f.h, 1.0); });
+  const STREET_COL = { stone: 0x5c5850, gravel: 0x3a352f };
+  for (const f of L.streets || []) FLAT.push({ x: (f.x0 + f.x1) / 2, z: (f.z0 + f.z1) / 2, hx: (f.x1 - f.x0) / 2, hz: (f.z1 - f.z0) / 2, h: 0, col: new THREE.Color(STREET_COL[f.k] || 0x47443e) });
+  FLAT.forEach(f => { f.h = 0; const prev = FLAT; FLAT = []; f.h = rawGround(f.x, f.z); FLAT = prev; f.h = Math.max(f.h, 1.0); if (L.town) f.h = L.base; });
   const S = 2 * WORLD + 160;
   // sky & lights
   const sk = L.sky; skyMat.uniforms.top.value.set(sk.top); skyMat.uniforms.hor.value.set(sk.hor); skyMat.uniforms.sunDir.value.set(...sk.sun).normalize();
@@ -323,7 +449,7 @@ function buildWorld(level) {
     tmp.copy(g1).lerp(g2, fbm(x * 0.05, z * 0.05));
     tmp.lerp(dirt, smooth((fbm(x * 0.09 + 40, z * 0.09) - 0.55) * 4) * 0.5);
     if (inField(x, z, 1.5)) tmp.lerp(soil, 0.45 + fbm(x * 0.3, z * 0.3) * 0.25);
-    for (const f of FLAT) { const d = Math.max(Math.abs(x - f.x) - f.hx, Math.abs(z - f.z) - f.hz); if (d < 2.5) tmp.lerp(dirt, smooth(1 - d / 2.5) * 0.7); }
+    for (const f of FLAT) { const d = Math.max(Math.abs(x - f.x) - f.hx, Math.abs(z - f.z) - f.hz); if (f.col) { if (d < 0.8) tmp.lerp(f.col, smooth((0.8 - d) / 1.6) * 0.9); } else if (d < 2.5) tmp.lerp(dirt, smooth(1 - d / 2.5) * 0.7); }
     if (wd < 22) tmp.lerp(mud, smooth((22 - wd) / 7));
     if (h < 0.15) tmp.lerp(wet, smooth((0.15 - h) / 1.6));
     colA[i * 3] = tmp.r; colA[i * 3 + 1] = tmp.g; colA[i * 3 + 2] = tmp.b;
@@ -341,8 +467,9 @@ function buildWorld(level) {
   const water = new THREE.Mesh(new THREE.PlaneGeometry(S, S), waterMat); water.rotation.x = -Math.PI / 2; water.position.y = 0; water.renderOrder = 2; worldRoot.add(water);
   // props
   const B = new Builder(), BT = new Builder(), G = new Builder();
-  for (const p of L.props) { const P = Object.assign({ ry: 0 }, p); if (p.t !== 'fence') P.y = groundH(p.x, p.z); else P.y = 0; const fn = PROPS[p.t]; if (fn) fn(['farmhouse', 'barn', 'shed', 'outhouse', 'packing', 'sawmill'].includes(p.t) ? BT : B, P, G); }
+  for (const p of L.props) { const P = Object.assign({ ry: 0 }, p); if (p.t !== 'fence') P.y = groundH(p.x, p.z); else P.y = 0; const fn = PROPS[p.t]; if (fn) fn(['farmhouse', 'barn', 'shed', 'outhouse', 'packing', 'sawmill', 'house', 'shop', 'station'].includes(p.t) ? BT : B, P, G); }
   worldRoot.add(B.mesh(propMat)); worldRoot.add(BT.mesh(propMatTex)); worldRoot.add(G.mesh(glowMat, false));
+  if (L.town) buildRail();
   // banana trees
   for (const f of L.fields) {
     for (let x = f.x0 + 2.5; x < f.x1 - 1; x += 6.2) for (let z = f.z0 + 2.5; z < f.z1 - 1; z += 6.2) {
@@ -354,16 +481,19 @@ function buildWorld(level) {
   }
   for (let i = 0; i < 26; i++) { // scattered wild banana trees
     const tx = srange(-WORLD + 8, WORLD - 8), tz = srange(-WORLD + 8, WORLD - 8);
-    if (waterDist(tx, tz) < 22 || inField(tx, tz, 4) || Math.hypot(tx - cp.x, tz - cp.z) < 18) continue;
+    if (waterDist(tx, tz) < 22 || inField(tx, tz, 4) || onStreet(tx, tz, 4) || indoorOf(tx, tz, 3) || Math.hypot(tx - cp.x, tz - cp.z) < 18) continue;
     const probe = { x: tx, z: tz }; if (COL.resolve(probe, 3)) continue;
     TREES.push({ x: tx, z: tz, h: srange(3.6, 5.2), lean: srange(-0.1, 0.1), la: srange(0, TAU), y: groundH(tx, tz), bunch: null });
   }
-  TREES.forEach(t => COL.addCircle(t.x, t.z, 0.42));
-  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ map: TEX.bark, roughness: 0.9 }), TREES.length);
-  const LPT = 8, leaves = new THREE.InstancedMesh(leafGeo, new THREE.MeshStandardMaterial({ map: TEX.leaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 }), TREES.length * LPT);
+  // in the village the trees are only scenery and the food hangs on the market stalls
+  const PLANT = TREES; if (L.food === 'meat') TREES = FOOD_SLOTS;
+  PLANT.forEach(t => COL.addCircle(t.x, t.z, 0.42));
+  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ map: TEX.bark, roughness: 0.9 }), Math.max(1, PLANT.length));
+  const LPT = 8, leaves = new THREE.InstancedMesh(leafGeo, new THREE.MeshStandardMaterial({ map: TEX.leaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 }), Math.max(1, PLANT.length) * LPT);
   leaves.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: TEX.leaf, alphaTest: 0.45 });
   const o = new THREE.Object3D(), lc = new THREE.Color();
-  TREES.forEach((t, i) => {
+  trunks.count = PLANT.length; leaves.count = PLANT.length * LPT;
+  PLANT.forEach((t, i) => {
     o.position.set(t.x, t.y - 0.2, t.z); o.rotation.set(t.lean * Math.cos(t.la), 0, t.lean * Math.sin(t.la)); o.scale.set(1, t.h, 1); o.updateMatrix(); trunks.setMatrixAt(i, o.matrix);
     const topX = t.x + Math.sin(t.lean * Math.sin(t.la)) * -t.h, topZ = t.z + Math.sin(t.lean * Math.cos(t.la)) * t.h; t.tx = topX; t.tz = topZ; t.top = t.y - 0.2 + t.h;
     for (let k = 0; k < LPT; k++) {
@@ -394,7 +524,7 @@ function buildWorld(level) {
   // rocks
   const rocks = new THREE.InstancedMesh(GEO.dode, new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: 0.95, flatShading: true }), 110); let rk = 0;
   for (let tries = 0; tries < 2000 && rk < 110; tries++) {
-    const x = srange(-WORLD, WORLD), z = srange(-WORLD, WORLD), wd = waterDist(x, z); if (inField(x, z, 2)) continue;
+    const x = srange(-WORLD, WORLD), z = srange(-WORLD, WORLD), wd = waterDist(x, z); if (inField(x, z, 2) || onStreet(x, z, 2) || indoorOf(x, z, 2)) continue;
     if (wd < 9 || (wd > 30 && srnd() < 0.7)) continue;
     const sp = waterPoint(L.start); if (Math.hypot(x - sp.x, z - sp.z) < 12 || Math.hypot(x - L.captive.x, z - L.captive.z) < 14) continue;
     const s = srange(0.3, wd < 22 ? 1.4 : 0.8); const probe = { x, z }; if (COL.resolve(probe, s + 1)) continue;

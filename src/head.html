@@ -49,6 +49,7 @@ html,body{height:100%;margin:0;background:#0a0c09;color:var(--ink);overflow:hidd
 #scorebox span{display:block;font-size:12px;letter-spacing:.24em;color:var(--olive);font-weight:700}
 #scorebox b{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
 #mission{right:calc(20px + env(safe-area-inset-right,0px));top:78px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--dim)}
+#mission.clock{font-size:15px;color:#e8ebe2}#mission.urgent{color:var(--alert)}
 #killfeed{right:calc(20px + env(safe-area-inset-right,0px));top:104px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .kf{background:rgba(8,10,7,.55);padding:3px 10px;font-size:15px;font-weight:600;text-transform:uppercase;display:flex;gap:10px;align-items:center;animation:kfin .18s ease-out;transition:opacity .6s}
 .kf .you{color:#8fd4ff}.kf .en{color:#ff8f78}.kf .ally{color:var(--banana)}
@@ -214,7 +215,7 @@ body.touch #zone{bottom:auto;top:34%}
   <div id="hud" class="off">
     <div id="obj" class="hud">
       <div class="hd">OBJECTIVES</div>
-      <div id="o1" class="orow active"><div class="bx"></div><div>Gather bananas<div class="osub" id="o1s">0 carried</div></div></div>
+      <div id="o1" class="orow active"><div class="bx"></div><div><span id="o1t">Gather bananas</span><div class="osub" id="o1s">0 carried</div></div></div>
       <div id="o2" class="orow active"><div class="bx"></div><div><span id="o2t">Feed the leopard</span><div class="meter"><i id="strbar"></i><b style="left:25%"></b><b style="left:50%"></b><b style="left:75%"></b></div><div class="osub" id="o2s">Strength 0%</div></div></div>
       <div id="o3" class="orow"><div class="bx"></div><div><span>Reach the river exfil</span><div class="osub" id="o3s">Locked until the leopard is free</div></div></div>
     </div>
@@ -233,7 +234,7 @@ body.touch #zone{bottom:auto;top:34%}
       <div class="bar" id="stb">BURST<div class="t"><i></i></div></div>
     </div>
     <div id="ammo" class="hud">
-      <div class="lbl">BANANAS</div>
+      <div class="lbl" id="blbl">BANANAS</div>
       <div class="cnt" id="bcnt">0<small> / 5</small></div>
       <div id="equip"></div>
     </div>

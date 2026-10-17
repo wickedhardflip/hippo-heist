@@ -2,7 +2,7 @@
 
 **A first-person stealth heist where you are the hippo.**
 
-Version 2.0 ([changelog](CHANGELOG.md))
+Version 2.1 ([changelog](CHANGELOG.md))
 
 The farmers of the lower valley have caught a leopard, and they are starving him in a cage. You are a river hippo with a plan: raid their banana groves, smuggle the fruit to the captive cat, and feed him until he is strong enough to break free. Then get out the way you came in, through the water, where no farmer can keep up and your bite is lethal.
 
@@ -64,8 +64,19 @@ Each mission has an online leaderboard, which you can open from the main menu or
 | 01 | **Chain Breaker** | Lower Valley Plantation, sunrise | Chained to an iron stake inside a fenced pen |
 | 02 | **Hard Cargo** | Cooper Packing Yard, dusk | Locked in a steel cage on a flatbed truck |
 | 03 | **Black Rain** | Monsoon Ridge Sawmill, midnight storm | Caged and hoisted under the sawmill gantry |
+| 04 | **Last Stop** | Millbrook Junction village, night | Caged on a circus train at the village station |
 
 Each mission opens with a briefing and a tactical map showing the water, the leopard and the exfil point.
+
+### Mission 04: Last Stop
+
+The hardest mission moves the heist from the farms into a village. The leopard has been sold to a circus and sits caged on a flatcar of the circus train at the station, and a departure clock counts down until it pulls out. Leopards eat meat, so here you steal hams and sausages from the market stalls, the butcher and the sausage carts instead of bananas.
+
+- **Village police.** Constables patrol the streets with batons and blow their whistles to bring every officer nearby. Two police dogs track you by scent, sergeants with net guns arrive at half strength and tangle you from range (bite to tear free), and the ringmaster comes for his star act with a long whip.
+- **Villagers.** Townsfolk walk the streets. If one sees you they scream for the police. You can eat them anywhere for health, but every few you eat brings another constable.
+- **Hide in houses.** Every house has an open door. Get inside out of sight and the walls hide you, and you heal faster while you wait for the police to lose your trail.
+- **Lamplight.** Street lamps light you up. Keep to the shadows between them.
+- **The river.** The river on the west side of the village runs under the railway bridge to the exfil point.
 
 <table>
   <tr>

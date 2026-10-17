@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="version" content="2.0" />
+<meta name="version" content="2.1" />
 <meta property="og:title" content="Hippo Heist" />
 <meta property="og:description" content="A hippo stealing bananas to feed a hungry leopard while avoiding angry farmers." />
 <meta property="og:image" content="https://wickedhardflip.github.io/hippo-heist/preview.png" />
@@ -13,7 +13,7 @@
 <meta name="twitter:description" content="A hippo stealing bananas to feed a hungry leopard while avoiding angry farmers." />
 <meta name="twitter:image" content="https://wickedhardflip.github.io/hippo-heist/preview.png" />
 </head><body>
-<title>Hippo Heist v2.0</title>
+<title>Hippo Heist v2.1</title>
 <meta name="description" content="Hippo Heist 2.0: a first-person 3D stealth heist. Play as a hippo, raid the banana groves, free the leopard. Free in your browser.">
 <meta property="og:title" content="Hippo Heist 2.0">
 <meta property="og:description" content="A first-person 3D stealth heist. Play as a hippo, raid the banana groves, free the leopard. Free in your browser.">
@@ -64,6 +64,7 @@ html,body{height:100%;margin:0;background:#0a0c09;color:var(--ink);overflow:hidd
 #scorebox span{display:block;font-size:12px;letter-spacing:.24em;color:var(--olive);font-weight:700}
 #scorebox b{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
 #mission{right:calc(20px + env(safe-area-inset-right,0px));top:78px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--dim)}
+#mission.clock{font-size:15px;color:#e8ebe2}#mission.urgent{color:var(--alert)}
 #killfeed{right:calc(20px + env(safe-area-inset-right,0px));top:104px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .kf{background:rgba(8,10,7,.55);padding:3px 10px;font-size:15px;font-weight:600;text-transform:uppercase;display:flex;gap:10px;align-items:center;animation:kfin .18s ease-out;transition:opacity .6s}
 .kf .you{color:#8fd4ff}.kf .en{color:#ff8f78}.kf .ally{color:var(--banana)}
@@ -229,7 +230,7 @@ body.touch #zone{bottom:auto;top:34%}
   <div id="hud" class="off">
     <div id="obj" class="hud">
       <div class="hd">OBJECTIVES</div>
-      <div id="o1" class="orow active"><div class="bx"></div><div>Gather bananas<div class="osub" id="o1s">0 carried</div></div></div>
+      <div id="o1" class="orow active"><div class="bx"></div><div><span id="o1t">Gather bananas</span><div class="osub" id="o1s">0 carried</div></div></div>
       <div id="o2" class="orow active"><div class="bx"></div><div><span id="o2t">Feed the leopard</span><div class="meter"><i id="strbar"></i><b style="left:25%"></b><b style="left:50%"></b><b style="left:75%"></b></div><div class="osub" id="o2s">Strength 0%</div></div></div>
       <div id="o3" class="orow"><div class="bx"></div><div><span>Reach the river exfil</span><div class="osub" id="o3s">Locked until the leopard is free</div></div></div>
     </div>
@@ -248,7 +249,7 @@ body.touch #zone{bottom:auto;top:34%}
       <div class="bar" id="stb">BURST<div class="t"><i></i></div></div>
     </div>
     <div id="ammo" class="hud">
-      <div class="lbl">BANANAS</div>
+      <div class="lbl" id="blbl">BANANAS</div>
       <div class="cnt" id="bcnt">0<small> / 5</small></div>
       <div id="equip"></div>
     </div>
@@ -272,7 +273,7 @@ body.touch #zone{bottom:auto;top:34%}
         <div>
           <div class="eyebrow">Special Operations · River Division</div>
           <h1 class="title">Hippo<br><em>Heist</em></h1>
-          <div class="ver" id="ver">v2.0</div>
+          <div class="ver" id="ver">v2.1</div>
           <p class="tag">You are a river hippo. A leopard is held captive on the banana farms of the lower valley. Feed him until he is strong enough to break free, and make the farmers regret following you to the water.</p>
         </div>
         <div class="panel">
@@ -791,6 +792,12 @@ const SFX = {
   thunder() { AU.noise({ brown: true, f: 900, f2: 120, dur: 3.5, vol: 0.9, a: 0.05, wet: 0.7 }); AU.noise({ type: 'lowpass', f: 2200, f2: 200, dur: 0.8, vol: 0.4, wet: 0.6 }); },
   bird(pos) { const f = rand(2600, 4200); AU.tone({ f, f2: f * 1.35, dur: 0.07, vol: 0.035, pos, wet: 0.5 }); AU.tone({ f: f * 1.2, f2: f * 0.85, dur: 0.1, vol: 0.035, delay: 0.1, pos, wet: 0.5 }); AU.tone({ f: f * 1.1, f2: f * 1.4, dur: 0.08, vol: 0.03, delay: 0.24, pos, wet: 0.5 }); },
   cricket() { const f = rand(4200, 5200); for (let i = 0; i < 6; i++) AU.tone({ type: 'triangle', f, dur: 0.03, vol: 0.015, delay: i * 0.05, wet: 0.4 }); },
+  whistle(pos) { for (let i = 0; i < 2; i++) { const d = i * 0.32; AU.tone({ type: 'square', f: 2900, f2: 3100, dur: 0.24, vol: 0.07, lp: 4200, pos, delay: d, wet: 0.2 }); for (let k = 0; k < 5; k++) AU.tone({ type: 'sine', f: 2700, dur: 0.035, vol: 0.06, pos, delay: d + k * 0.045 }); } },
+  scream(pos, v = 1) { const p = rand(0.9, 1.25); AU.tone({ type: 'sawtooth', f: 620 * p, f2: 1050 * p, glide: 0.25, dur: 0.75, vol: 0.16 * v, bp: 1300, q: 2.5, pos, a: 0.04 }); AU.tone({ type: 'sawtooth', f: 900 * p, f2: 1400 * p, glide: 0.3, dur: 0.7, vol: 0.08 * v, bp: 2600, q: 3, pos, a: 0.05 }); },
+  netgun(pos) { AU.noise({ brown: true, f: 500, dur: 0.25, vol: 0.5, pos }); AU.noise({ type: 'bandpass', f: 900, f2: 2400, q: 1, dur: 0.3, vol: 0.2, pos }); },
+  netHit() { AU.noise({ type: 'bandpass', f: 1400, q: 0.9, dur: 0.35, vol: 0.3 }); AU.tone({ f: 140, f2: 70, dur: 0.2, vol: 0.2 }); },
+  rip() { AU.noise({ type: 'highpass', f: 2600, dur: 0.12, vol: 0.22, wet: 0.05 }); AU.noise({ type: 'bandpass', f: 900, q: 2, dur: 0.1, vol: 0.18, delay: 0.04 }); },
+  trainWhistle() { const pos = rig && rig.stack ? { x: rig.stack.x + rig.g.position.x, z: rig.stack.z } : null; [[392, 0.13], [494, 0.1], [587, 0.08]].forEach(([f, v]) => { AU.tone({ type: 'sawtooth', f, f2: f * 0.98, dur: 1.6, vol: v, lp: 1600, a: 0.12, pos, wet: 0.6 }); }); AU.noise({ type: 'bandpass', f: 2200, q: 1.5, dur: 1.5, vol: 0.06, a: 0.1, pos, wet: 0.5 }); },
   ui() { AU.tone({ type: 'square', f: 1200, dur: 0.04, vol: 0.05, lp: 3000, wet: 0 }); },
   type() { AU.noise({ type: 'bandpass', f: 3000, q: 3, dur: 0.02, vol: 0.06, wet: 0 }); },
   powerdown() { AU.tone({ type: 'square', f: 660, f2: 330, dur: 0.25, vol: 0.05, lp: 2000 }); },
@@ -801,18 +808,27 @@ const SFX = {
 // ================= LEVELS, DIFFICULTY, POWER-UPS =================
 const WORLD = 115;
 const DIFF = {
-  recruit: { dmg: 0.45, detect: 0.65, extra: -1, regen: 16, label: 'Recruit', note: 'Farmers are slow to notice you and hit softly.' },
-  regular: { dmg: 0.8, detect: 1.0, extra: 0, regen: 12, label: 'Regular', note: 'A fair fight. Farmers react quickly once they spot you.' },
-  hardened: { dmg: 1.1, detect: 1.3, extra: 2, regen: 9, label: 'Hardened', note: 'More farmers, sharper eyes, heavier swings.' },
-  veteran: { dmg: 1.55, detect: 1.65, extra: 4, regen: 6, label: 'Veteran', note: 'The whole valley is armed and awake. Use the water.' }
+  recruit: { dmg: 0.45, detect: 0.65, extra: -1, regen: 16, time: 1.3, label: 'Recruit', note: 'Farmers are slow to notice you and hit softly.' },
+  regular: { dmg: 0.8, detect: 1.0, extra: 0, regen: 12, time: 1, label: 'Regular', note: 'A fair fight. Farmers react quickly once they spot you.' },
+  hardened: { dmg: 1.1, detect: 1.3, extra: 2, regen: 9, time: 0.9, label: 'Hardened', note: 'More farmers, sharper eyes, heavier swings.' },
+  veteran: { dmg: 1.55, detect: 1.65, extra: 4, regen: 6, time: 0.8, label: 'Veteran', note: 'The whole valley is armed and awake. Use the water.' }
 };
 const TOOLS = {
   hatchet: { dmg: 17, reach: 2.4, wind: 0.36, cool: 1.0, speed: 1, name: 'HATCHET' },
   machete: { dmg: 14, reach: 2.5, wind: 0.28, cool: 0.85, speed: 1.04, name: 'MACHETE' },
   pitchfork: { dmg: 13, reach: 3.1, wind: 0.42, cool: 1.15, speed: 0.97, name: 'PITCHFORK' },
   shovel: { dmg: 12, reach: 2.7, wind: 0.45, cool: 1.15, speed: 1, knock: 7, name: 'SHOVEL' },
-  chainsaw: { dmg: 7, reach: 2.6, wind: 0.12, cool: 0.22, speed: 0.82, name: 'CHAINSAW' }
+  chainsaw: { dmg: 7, reach: 2.6, wind: 0.12, cool: 0.22, speed: 0.82, name: 'CHAINSAW' },
+  baton: { dmg: 9, reach: 2.2, wind: 0.22, cool: 0.7, speed: 1.08, knock: 3, name: 'BATON' },
+  netgun: { dmg: 8, reach: 2.2, wind: 0.3, cool: 1.0, speed: 0.95, ranged: true, name: 'NET GUN' },
+  whip: { dmg: 15, reach: 4.4, wind: 0.4, cool: 1.1, speed: 1.0, knock: 4, name: 'WHIP' }
 };
+// what the hippo carries to the leopard on each mission
+const FOODS = {
+  banana: { one: 'banana', many: 'bananas', where: 'bunches on the trees', gather: 'Gather bananas', label: 'BANANAS', xp: 'BANANA', fed: 'BANANAS FED', css: '#ffd23f' },
+  meat: { one: 'cut of meat', many: 'cuts of meat', where: 'cuts on the market stalls', gather: 'Steal meat', label: 'MEAT', xp: 'MEAT', fed: 'CUTS FED', css: '#f08a6c' }
+};
+const food = () => FOODS[L.food || 'banana'];
 const POWER = {
   golden: { name: 'GOLDEN BANANA', short: 'GOLD', color: 0xffc81e, css: '#ffc81e', desc: 'Counts as three bananas' },
   melon: { name: 'WATERMELON', short: 'MELON', color: 0x5fcf4f, css: '#7ee06a', desc: 'Restores full health' },
@@ -820,6 +836,7 @@ const POWER = {
   camo: { name: 'MUD CAMO', short: 'CAMO', color: 0x9b7448, css: '#c79a66', desc: 'Farmers struggle to see you', dur: 25 },
   hide: { name: 'THICK HIDE', short: 'HIDE', color: 0xb8c2cc, css: '#c9d3dc', desc: 'Armor that absorbs damage' },
   parrot: { name: 'RECON PARROT', short: 'RECON', color: 0x35d7e8, css: '#5fe3f0', desc: 'Every farmer shows on your map', dur: 30 },
+  roast: { name: 'SMOKED HAM', short: 'HAM', color: 0xc8643a, css: '#e8875a', desc: 'Counts as three cuts of meat' },
   frenzy: { name: 'FEEDING FRENZY', short: 'FRENZY', color: 0xb44dff, css: '#c98bff', desc: 'Your bite is lethal anywhere', dur: 15 }
 };
 const LEVELS = [
@@ -900,9 +917,72 @@ const LEVELS = [
     waves: [{ at: 25, f: 2, d: 1 }, { at: 50, f: 1, foreman: true }, { at: 80, f: 3 }],
     need: 20, cap: 5, power: ['golden', 'melon', 'pepper', 'camo', 'hide', 'parrot', 'frenzy'],
     insertion: ['OPERATION BLACK RAIN', 'DAY 3 · 23:10:04', 'Monsoon Ridge Sawmill', 'Callsign: MUDSLIDE']
+  },
+  {
+    id: 4, op: 'LAST STOP', place: 'Millbrook Junction', clock: 'DAY 4 · 20:05', seed: 41, town: true, food: 'meat',
+    captiveLine: 'Caged on a circus train at the village station',
+    brief: [
+      'The farmers sold the leopard to a travelling circus. He is caged on a flatcar of the circus train, stopped at Millbrook Junction to take on coal and water. When it pulls out, he is gone for good.',
+      'Leopards do not eat bananas. Steal hams and sausages from the market stalls, the butcher and the sausage carts, and feed him through the bars until he can rip the door off. The mission clock shows how long until the train leaves.',
+      'This is a village, not a farm. Villagers scream for the police when they see you, but you can eat them anywhere for health. Constables patrol the streets with batons and whistles and bring two police dogs. Sergeants with net guns join at half strength and the ringmaster comes for his star act at three quarters.',
+      'Every house has an open door. Slip inside to break line of sight and lose your pursuers. Street lamps light you up, so keep to the shadows. The river on the west side runs under the railway bridge to the exfil point.'
+    ],
+    intel: [['Captive', 'Cage on a circus train'], ['Hostiles', 'Police, K9 dogs, the ringmaster'], ['Deadline', 'Train departs in {depart}']],
+    sky: { top: 0x121a30, hor: 0x5a4660, sun: [-0.45, 0.42, 0.55], sunCol: 0xb4c0e8, sunInt: 0.6, hemiSky: 0x6c7cac, hemiGround: 0x2a2420, hemiInt: 0.58, fog: 0x2c2a3c, fogD: 0.0105, cloud: 0.48, cloudCol: 0x403c58, night: 1, rain: 0, gain: [1.0, 0.98, 1.06], lift: [0.022, 0.02, 0.04], expo: 1.28, grass: [0x3f4a2c, 0x525a34], mud: 0x3d3326 },
+    water: [{ type: 'river', axis: 'z', base: -88, a1: 3, f1: 0.03, p1: 0, a2: 1.5, f2: 0.08, p2: 1 }, { type: 'pond', x: 88, z: 60, r: 24 }],
+    base: 1.2, hill: 0.6,
+    fields: [],
+    streets: [
+      { x0: -64, x1: 60, z0: -6, z1: 6 }, { x0: -64, x1: 60, z0: 44, z1: 54 }, { x0: -38, x1: -30, z0: -56, z1: 54 }, { x0: 6, x1: 16, z0: -70, z1: 54 },
+      { x0: 44, x1: 52, z0: -56, z1: 54 }, { x0: -64, x1: 60, z0: -56, z1: -50 }, { x0: -10, x1: 32, z0: 6, z1: 44 },
+      { x0: -32, x1: 44, z0: -76, z1: -70, k: 'stone' }, { x0: -66, x1: 115, z0: -84, z1: -76, k: 'gravel' }
+    ],
+    captive: { type: 'train', x: 8, z: -80 },
+    props: [
+      { t: 'house', x: -57, z: 11, ry: Math.PI }, { t: 'house', x: -44, z: 11, ry: Math.PI }, { t: 'house', x: -20, z: 11, ry: Math.PI },
+      { t: 'house', x: -57, z: 39, ry: 0 }, { t: 'house', x: -44, z: 39, ry: 0 }, { t: 'house', x: -20, z: 39, ry: 0 }, { t: 'house', x: -25, z: 25, ry: -Math.PI / 2 },
+      { t: 'house', x: -57, z: -11, ry: 0 }, { t: 'house', x: -44, z: -11, ry: 0 }, { t: 'house', x: -20, z: -11, ry: 0 }, { t: 'house', x: -1, z: -11, ry: 0 },
+      { t: 'house', x: 23, z: -11, ry: 0 }, { t: 'house', x: 37, z: -11, ry: 0 },
+      { t: 'house', x: -57, z: -45, ry: Math.PI }, { t: 'house', x: -44, z: -45, ry: Math.PI }, { t: 'house', x: 23, z: -45, ry: Math.PI }, { t: 'house', x: 37, z: -45, ry: Math.PI },
+      { t: 'house', x: -55, z: 59, ry: Math.PI }, { t: 'house', x: -40, z: 59, ry: Math.PI }, { t: 'house', x: -24, z: 59, ry: Math.PI }, { t: 'house', x: -4, z: 59, ry: Math.PI },
+      { t: 'house', x: 24, z: 59, ry: Math.PI }, { t: 'house', x: 38, z: 59, ry: Math.PI },
+      { t: 'police', x: -12, z: -36, ry: 0, label: 'POLICE' }, { t: 'station', x: -14, z: -63, ry: Math.PI, label: 'STATION' },
+      { t: 'shop', x: 38, z: 22, ry: -Math.PI / 2, sign: 'BUTCHER', col: 0x8a2a24, label: 'BUTCHER' }, { t: 'shop', x: 38, z: 36, ry: -Math.PI / 2, sign: 'THE DROVERS ARMS', col: 0x2e4a3a },
+      { t: 'church', x: 66, z: -24, ry: -Math.PI / 2, label: 'CHURCH' }, { t: 'watertower', x: 64, z: -48 },
+      { t: 'stall', x: -6, z: 38, ry: Math.PI }, { t: 'stall', x: 2, z: 38, ry: Math.PI }, { t: 'stall', x: 22, z: 38, ry: Math.PI }, { t: 'stall', x: 28, z: 38, ry: Math.PI },
+      { t: 'stall', x: -6, z: 12, ry: 0 }, { t: 'stall', x: 2, z: 12, ry: 0 }, { t: 'stall', x: 22, z: 12, ry: 0 }, { t: 'stall', x: 28, z: 12, ry: 0 },
+      { t: 'rack', x: 31, z: 22, ry: -Math.PI / 2 }, { t: 'rack', x: -12, z: 68, ry: 0 }, { t: 'cart', x: -36, z: 30, ry: Math.PI / 2 }, { t: 'cart', x: 48, z: -30, ry: -Math.PI / 2 },
+      { t: 'fountain', x: -2, z: 25 },
+      { t: 'lamp', x: -50, z: 6.5 }, { t: 'lamp', x: -20, z: -6.5 }, { t: 'lamp', x: 10, z: 6.5 }, { t: 'lamp', x: 40, z: -6.5 }, { t: 'lamp', x: 57, z: 6.5 },
+      { t: 'lamp', x: -50, z: 43.5 }, { t: 'lamp', x: -8, z: 43.5 }, { t: 'lamp', x: 30, z: 54.5 }, { t: 'lamp', x: 6.5, z: 18 }, { t: 'lamp', x: 15.5, z: 34, ry: Math.PI },
+      { t: 'lamp', x: -26, z: -70.5 }, { t: 'lamp', x: 0, z: -70.5 }, { t: 'lamp', x: 26, z: -70.5 }, { t: 'lamp', x: 40, z: -56.5 },
+      { t: 'lamp', x: -30, z: -30 }, { t: 'lamp', x: 44, z: 26, ry: Math.PI }, { t: 'lamp', x: 44, z: -30, ry: Math.PI },
+      { t: 'crates', x: 36, z: -73 }, { t: 'barrels', x: -28, z: -73 }, { t: 'crates', x: -60, z: -28 }, { t: 'barrels', x: 30, z: 4.6 }, { t: 'well', x: -50, z: -28 },
+      { t: 'fence', x0: -64, z0: 70, x1: -30, z1: 70 }, { t: 'fence', x0: 18, z0: 70, x1: 50, z1: 70 }, { t: 'hay', x: -46, z: 76 }, { t: 'shed', x: 30, z: 80, ry: 0 }
+    ],
+    routes: [
+      [[-58, 0], [-34, 0], [11, 0], [48, 0], [56, 0], [48, 0], [11, 0], [-34, 0]],
+      [[-58, 49], [-34, 49], [11, 49], [48, 49], [56, 49], [48, 49], [11, 49], [-34, 49]],
+      [[-34, -53], [-34, 0], [-34, 49], [-34, 0]],
+      [[48, -53], [48, 0], [48, 49], [48, 0]],
+      [[-8, 17], [30, 17], [30, 33], [6, 33], [-8, 33]],
+      [[-58, -53], [-34, -53], [11, -53], [48, -53], [11, -53], [-34, -53]],
+      [[-26, -73], [0, -73], [24, -73], [40, -73], [24, -73], [0, -73]],
+      [[11, -53], [11, 0], [11, 49], [11, 0]],
+      [[-34, -53], [11, -53], [11, 0], [-34, 0]],
+      [[11, 0], [48, 0], [48, 49], [11, 49]]
+    ],
+    start: { river: 0, t: 30, off: 17 }, exfil: { river: 0, t: -104, off: 15 },
+    enemies: { farmers: 8, tools: ['baton'], look: 'police', whistle: true, names: ['Pike', 'Hobbs', 'Dunn', 'Fowler', 'Briggs', 'Marsh', 'Tate', 'Cole', 'Webb', 'Sykes', 'Rook', 'Hale', 'Voss', 'Kerr', 'Platt', 'Lowe', 'Ames', 'Baird'], dogs: 2, dogNames: ['Rex', 'Kaiser', 'Bruno', 'Max'], lanterns: true },
+    civilians: 12, depart: 840, waveFrom: 'from the police station', spotHint: 'You have been spotted. Break line of sight inside a house, or run for the river.',
+    waves: [{ at: 25, f: 2, d: 1 }, { at: 50, f: 2, tool: 'netgun', look: 'sergeant', rank: 'Sgt', title: 'Sergeants inbound', note: 'Net guns. They tangle you at range' }, { at: 75, f: 1, boss: { tool: 'whip', look: 'ring', name: 'Ringmaster Vale', title: 'The ringmaster is here', sub: 'He wants his star act back. Keep out of reach of the whip' } }],
+    need: 20, cap: 4, power: ['roast', 'melon', 'pepper', 'camo', 'hide', 'parrot', 'frenzy'],
+    insertion: ['OPERATION LAST STOP', 'DAY 4 · 20:05:31', 'Millbrook Junction', 'Callsign: MUDSLIDE'],
+    quotes: ['Lamplight gives you away. Keep to the dark side of the street.', 'A scream brings the constables. Eat the witness before they run.', 'Break line of sight, then duck into a house and wait.', 'Net guns only work at range. Close the gap or get out of sight.', 'The train will not wait. Watch the departure clock.']
   }
 ];
 const FARMER_NAMES = ['Dale', 'Earl', 'Wade', 'Rusty', 'Hank', 'Otis', 'Merle', 'Buck', 'Vern', 'Gus', 'Roy', 'Lyle', 'Floyd', 'Amos', 'Boone', 'Jeb', 'Cal', 'Walt', 'Abe', 'Ned', 'Clem', 'Hoyt', 'Ike', 'Jud'];
+const CIV_NAMES = ['Agnes', 'Bertie', 'Clara', 'Dottie', 'Elsie', 'Fred', 'Gwen', 'Harold', 'Ivy', 'Jack', 'Kitty', 'Len', 'Mabel', 'Norm', 'Olive', 'Percy', 'Queenie', 'Ron'];
 const DOG_NAMES = ['Biscuit', 'Rufus', 'Duke', 'Bandit', 'Ranger', 'Blue'];
 const DEATH_QUOTES = [
   'Never fight a farmer on dry land. The river is your ally.',
@@ -917,6 +997,7 @@ const DEATH_QUOTES = [
 let L = LEVELS[0];
 let FLAT = [];
 let TREES = [];
+let HOUSES = [], FOOD_SLOTS = [], LAMPS = [];
 const worldRoot = new THREE.Group(); scene.add(worldRoot);
 const WATER_CORE = 13.4, ZONE_D = 19.5;
 
@@ -952,6 +1033,9 @@ function waterPoint(spec) {
   const r = w.r - WATER_CORE + spec.off; return { x: w.x + Math.cos(spec.a) * r, z: w.z + Math.sin(spec.a) * r };
 }
 function inField(x, z, m = 0) { for (const f of L.fields) if (x > f.x0 - m && x < f.x1 + m && z > f.z0 - m && z < f.z1 + m) return f; return null; }
+function onStreet(x, z, m = 0) { if (!L.streets) return null; for (const f of L.streets) if (x > f.x0 - m && x < f.x1 + m && z > f.z0 - m && z < f.z1 + m) return f; return null; }
+// enterable houses: the interior rectangle the hippo can hide in
+function indoorOf(x, z, m = 0) { for (const h of HOUSES) if (x > h.x0 - m && x < h.x1 + m && z > h.z0 - m && z < h.z1 + m) return h; return null; }
 
 // ---------- lights & sky ----------
 const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7); scene.add(hemi);
@@ -961,6 +1045,7 @@ const sc = sun.shadow.camera; sc.left = -60; sc.right = 60; sc.top = 60; sc.bott
 scene.add(sun); scene.add(sun.target);
 function setShadowRes() { const s = RQ.quality === 'low' ? 1024 : RQ.quality === 'high' ? 2048 : 4096; if (sun.shadow.mapSize.x !== s) { sun.shadow.mapSize.set(s, s); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
 const LANTERNS = []; for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffb05a, 0, 14, 2); scene.add(l); LANTERNS.push(l); }
+const LAMPLIGHTS = []; for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffc879, 0, 17, 2); scene.add(l); LAMPLIGHTS.push(l); }
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, cloudCol: { value: new THREE.Color() }, cloud: { value: 0.4 }, time: { value: 0 }, night: { value: 0 }, flash: { value: 0 } },
@@ -1107,13 +1192,31 @@ const bunchGeo = (() => {
   return B.geometry();
 })();
 const bunchMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, emissive: 0x332600, emissiveIntensity: 0.6 });
+// a smoked ham and a string of sausages hanging from a hook, same footprint as a banana bunch
+const meatGeo = (() => {
+  const B = new Builder();
+  B.add(GEO.cyl8, 0x6a5a40, M(0, 0.45, 0, 0, 0, 0, 0.02, 0.7, 0.02));
+  B.add(GEO.sph, 0x8e3b22, M(0, -0.12, 0, 0.25, 0, 0, 0.32, 0.46, 0.3)); B.add(GEO.sph, 0xa84a2c, M(0, 0.1, 0.02, 0.25, 0, 0, 0.24, 0.3, 0.24));
+  B.add(GEO.cyl, 0xd88a7c, M(0, -0.5, 0.1, 0.25, 0, 0, 0.2, 0.04, 0.2)); B.add(GEO.cyl8, 0xeee4cc, M(0, 0.3, -0.06, 0.25, 0, 0, 0.05, 0.3, 0.05));
+  for (let i = 0; i < 4; i++) B.add(GEO.sph, i % 2 ? 0xb4563a : 0xa04a30, M(0.3, 0.16 - i * 0.2, 0.05, 0, 0, 0.15, 0.07, 0.11, 0.07));
+  return B.geometry();
+})();
+const meatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, emissive: 0x2a0c04, emissiveIntensity: 0.7 });
+const SIGNTEX = {};
+function signMesh(text, w, h, bg = '#2a2018', fg = '#f2e2b6') {
+  const k = text + bg + fg;
+  if (!SIGNTEX[k]) SIGNTEX[k] = canvasTex(512, Math.round(512 * h / w), (g, cw, ch) => { g.fillStyle = bg; g.fillRect(0, 0, cw, ch); g.strokeStyle = fg; g.lineWidth = ch * 0.06; g.strokeRect(ch * 0.08, ch * 0.08, cw - ch * 0.16, ch - ch * 0.16); g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; let fs = ch * 0.5; g.font = `800 ${fs}px Georgia,serif`; while (g.measureText(text).width > cw * 0.86 && fs > 8) { fs -= 2; g.font = `800 ${fs}px Georgia,serif`; } g.fillText(text, cw / 2, ch * 0.54); }, false);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: SIGNTEX[k], roughness: 0.8, emissive: 0xffffff, emissiveMap: SIGNTEX[k], emissiveIntensity: L.sky.night ? 0.35 : 0 }));
+  m.receiveShadow = true; return m;
+}
+function placeSign(P, text, lx, ly, lz, w, h, bg, fg, face = 0) { const m = signMesh(text, w, h, bg, fg); const [wx, wz] = rotXZ(P, lx, lz); m.position.set(wx, P.y + ly, wz); m.rotation.y = (P.ry || 0) + face; worldRoot.add(m); return m; }
 
 // ---------- props ----------
 function rotXZ(P, lx, lz) { const c = Math.cos(P.ry || 0), s = Math.sin(P.ry || 0); return [P.x + lx * c + lz * s, P.z - lx * s + lz * c]; }
 function padd(B, geo, color, P, lx, ly, lz, sx, sy, sz, rx = 0, ry = 0, rz = 0) { const [wx, wz] = rotXZ(P, lx, lz); B.add(geo, color, M(wx, P.y + ly, wz, rx, ry + (P.ry || 0), rz, sx, sy, sz)); }
 function pbox(P, lx, lz, hx, hz, tall = true) { const [wx, wz] = rotXZ(P, lx, lz); const sw = Math.abs(Math.sin(P.ry || 0)) > 0.5; COL.addBox(wx, wz, sw ? hz : hx, sw ? hx : hz, tall); }
 function pcirc(P, lx, lz, r) { const [wx, wz] = rotXZ(P, lx, lz); COL.addCircle(wx, wz, r); }
-const PROP_PADS = { hay: [2.2, 2.2], crates: [2.6, 2.6], barrels: [1.5, 1.5], lamp: [0.8, 0.8], scarecrow: [1, 1], farmhouse: [9, 8], barn: [9, 12], silo: [4, 4], shed: [4, 4], packing: [14, 10], sawmill: [12, 9], watertower: [4, 4], tractor: [3, 3], pickup: [3, 3.5], well: [2, 2], outhouse: [2, 2], logs: [5, 3] };
+const PROP_PADS = { house: [6, 5], shop: [7, 6], police: [9, 6], station: [10, 5], church: [6, 9], stall: [2.5, 1.5], rack: [2, 1.2], cart: [1.6, 1.6], fountain: [3.2, 3.2], hay: [2.2, 2.2], crates: [2.6, 2.6], barrels: [1.5, 1.5], lamp: [0.8, 0.8], scarecrow: [1, 1], farmhouse: [9, 8], barn: [9, 12], silo: [4, 4], shed: [4, 4], packing: [14, 10], sawmill: [12, 9], watertower: [4, 4], tractor: [3, 3], pickup: [3, 3.5], well: [2, 2], outhouse: [2, 2], logs: [5, 3] };
 const PROPS = {
   farmhouse(B, P, G) {
     const W = 14, D = 10, H = 4.4;
@@ -1191,7 +1294,99 @@ const PROPS = {
     padd(L.sky.night ? G : B, GEO.box, 0xffcf80, P, 0, H - 0.4, 0, 2, 0.25, 0.25); for (const lx of [-0.8, 0.8]) padd(B, GEO.box, 0x2a2a2a, P, lx, H - 0.1, 0, 0.04, 0.4, 0.04);
   },
   logs(B, P) { for (let r = 0; r < 3; r++) for (let i = 0; i < 4 - r; i++) padd(B, GEO.cyl, pick([0x6a4a2a, 0x7a5a36, 0x5e4026]), P, 0, 0.5 + r * 0.85, (i - (3 - r) / 2) * 1.0, 0.5, 8, 0.5, 0, 0, Math.PI / 2); pbox(P, 0, 0, 4, 2.2, false); },
-  lamp(B, P, G) { padd(B, GEO.cyl8, 0x3a3a3a, P, 0, 3, 0, 0.1, 6, 0.1); padd(B, GEO.box, 0x3a3a3a, P, 0.5, 6, 0, 1.2, 0.1, 0.1); padd(L.sky.night || L.id === 2 ? G : B, GEO.cone, 0xfff3c8, P, 1.0, 5.85, 0, 0.3, 0.3, 0.3, Math.PI); pcirc(P, 0, 0, 0.25); },
+  lamp(B, P, G) { if (L.town) { const [hx, hz] = rotXZ(P, 1.0, 0); LAMPS.push({ x: hx, z: hz, y: P.y + 5.6 }); } padd(B, GEO.cyl8, 0x3a3a3a, P, 0, 3, 0, 0.1, 6, 0.1); padd(B, GEO.box, 0x3a3a3a, P, 0.5, 6, 0, 1.2, 0.1, 0.1); padd(L.sky.night || L.id === 2 ? G : B, GEO.cone, 0xfff3c8, P, 1.0, 5.85, 0, 0.3, 0.3, 0.3, Math.PI); pcirc(P, 0, 0, 0.25); },
+  // ----- village -----
+  house(B, P, G) {
+    const W = 10, D = 8, H = 3.6, th = 0.35, gap = 3.2, seg = (W - gap) / 2;
+    const wall = pick([0xd8cdb2, 0xcab79a, 0xe0d6c4, 0xb9a487, 0xc9b9a8, 0xa9b0a0]), roof = pick([0x6a3426, 0x4a3a34, 0x5a2a22, 0x3c4048, 0x6e4a2e]), trim = 0x5a4632;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.12, 0, W + 0.3, 0.3, D + 0.3);
+    padd(B, GEO.box, 0x6a5038, P, 0, 0.3, 0, W - th * 2, 0.06, D - th * 2);
+    padd(B, GEO.box, 0x7a3a2e, P, 0, 0.34, -0.5, 3.6, 0.03, 2.4);
+    padd(B, GEO.box, wall, P, 0, H / 2, -D / 2 + th / 2, W, H, th);
+    for (const s of [-1, 1]) { padd(B, GEO.box, wall, P, s * (W / 2 - th / 2), H / 2, 0, th, H, D); padd(B, GEO.box, wall, P, s * (gap / 2 + seg / 2), H / 2, D / 2 - th / 2, seg, H, th); }
+    padd(B, GEO.box, wall, P, 0, H - 0.4, D / 2 - th / 2, gap, 0.8, th);
+    for (const s of [-1, 1]) padd(B, GEO.box, trim, P, s * (gap / 2 + 0.08), (H - 0.8) / 2, D / 2 + 0.02, 0.16, H - 0.8, 0.1);
+    padd(B, GEO.prism, roof, P, 0, H + 0.5 * 2.2, 0, W + 1.0, 2.2, (D / 2 + 0.7) / 0.866);
+    padd(B, GEO.box, 0x6a5a4c, P, W / 2 - 2, H + 2.2, -1.2, 0.8, 2.2, 0.8);
+    const winC = L.sky.night ? 0xffc46a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) { padd(wg, GEO.box, winC, P, s * 3.3, 2.1, D / 2 + 0.03, 1.4, 1.1, 0.06); padd(B, GEO.box, 0xf1ece0, P, s * 3.3, 2.1, D / 2 + 0.01, 1.6, 1.3, 0.04); padd(wg, GEO.box, winC, P, s * (W / 2 + 0.03), 2.1, -1.5, 0.06, 1.1, 1.4); }
+    padd(wg, GEO.box, winC, P, 0, 2.1, -D / 2 - 0.03, 1.4, 1.1, 0.06);
+    pbox(P, 0, -D / 2 + th / 2, W / 2, th / 2); for (const s of [-1, 1]) { pbox(P, s * (W / 2 - th / 2), 0, th / 2, D / 2); pbox(P, s * (gap / 2 + seg / 2), D / 2 - th / 2, seg / 2, th / 2); }
+    const c = [rotXZ(P, -(W / 2 - th), -(D / 2 - th)), rotXZ(P, W / 2 - th, D / 2 - th)];
+    const door = rotXZ(P, 0, D / 2 - th / 2), out = rotXZ(P, 0, D / 2 + 2.6), inn = rotXZ(P, 0, D / 2 - 2.4);
+    HOUSES.push({ x0: Math.min(c[0][0], c[1][0]), x1: Math.max(c[0][0], c[1][0]), z0: Math.min(c[0][1], c[1][1]), z1: Math.max(c[0][1], c[1][1]), door: { x: door[0], z: door[1] }, out: { x: out[0], z: out[1] }, inn: { x: inn[0], z: inn[1] } });
+  },
+  shop(B, P, G) {
+    const W = 12, D = 9, H = 5.2, col = P.col || 0x6a4a3a;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.15, 0, W + 0.4, 0.3, D + 0.4);
+    padd(B, GEO.box, 0xd2c6ac, P, 0, H / 2, 0, W, H, D); padd(B, GEO.box, col, P, 0, 1.6, D / 2 + 0.03, W, 3.2, 0.06);
+    padd(B, GEO.box, 0x4a3a30, P, 0, H + 0.35, 0, W + 0.6, 0.7, D + 0.6);
+    for (let i = -5; i <= 5; i++) padd(B, GEO.box, i % 2 ? 0xe8e0cc : col, P, i * 1.1, 3.5, D / 2 + 0.9, 1.1, 0.08, 1.8, -0.35);
+    const winC = L.sky.night ? 0xffd28a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) padd(wg, GEO.box, winC, P, s * 3.2, 1.7, D / 2 + 0.07, 3.2, 1.8, 0.05);
+    padd(B, GEO.box, 0x2a1e18, P, 0, 1.25, D / 2 + 0.07, 1.4, 2.5, 0.06);
+    if (P.sign) placeSign(P, P.sign, 0, 4.4, D / 2 + 0.06, 7, 1.0, '#1e1a16', '#f0d890');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  police(B, P, G) {
+    const W = 16, D = 10, H = 5.4;
+    padd(B, GEO.box, 0x5a5a58, P, 0, 0.2, 0, W + 0.6, 0.4, D + 0.6);
+    padd(B, GEO.box, 0x8a5a44, P, 0, H / 2, 0, W, H, D); padd(B, GEO.box, 0x3a3e46, P, 0, H + 0.3, 0, W + 0.5, 0.6, D + 0.5);
+    padd(B, GEO.box, 0x1e2838, P, 0, 1.3, D / 2 + 0.04, 1.8, 2.6, 0.06); padd(B, GEO.box, 0xe6e0d0, P, 0, 2.75, D / 2 + 0.3, 3, 0.15, 0.7);
+    padd(L.sky.night ? G : B, GEO.box, 0x6ab0ff, P, 0, 3.4, D / 2 + 0.35, 0.5, 0.5, 0.5);
+    const winC = L.sky.night ? 0xfff0c8 : 0x24323c, wg = L.sky.night ? G : B;
+    for (const x of [-6, -3.2, 3.2, 6]) { padd(wg, GEO.box, winC, P, x, 2.2, D / 2 + 0.04, 1.4, 1.4, 0.05); padd(wg, GEO.box, winC, P, x, 4.2, D / 2 + 0.04, 1.4, 1.0, 0.05); }
+    placeSign(P, 'POLICE', 0, 4.4, D / 2 + 0.06, 4.4, 0.9, '#16243c', '#e8eef8');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  station(B, P, G) {
+    const W = 18, D = 7, H = 4.4;
+    padd(B, GEO.box, 0x6d6457, P, 0, 0.2, 0, W + 0.4, 0.4, D + 0.4);
+    padd(B, GEO.box, 0xc8b48c, P, 0, H / 2, 0, W, H, D); padd(B, GEO.prism, 0x4a3a34, P, 0, H + 0.5 * 1.8, 0, W + 0.8, 1.8, (D / 2 + 0.5) / 0.866);
+    const winC = L.sky.night ? 0xffd28a : 0x24323c, wg = L.sky.night ? G : B;
+    for (const x of [-6, -2, 2, 6]) padd(wg, GEO.box, winC, P, x, 2, D / 2 + 0.04, 1.6, 1.8, 0.05);
+    padd(B, GEO.box, 0x4a3a2c, P, 0, H - 0.1, D / 2 + 3.4, W + 6, 0.18, 6.4, 0.08);
+    for (const x of [-11, -5.5, 0, 5.5, 11]) { padd(B, GEO.cyl8, 0x2e3a2e, P, x, (H - 0.2) / 2, D / 2 + 6, 0.12, H - 0.2, 0.12); pcirc(P, x, D / 2 + 6, 0.25); }
+    padd(B, GEO.box, 0xe8e2d0, P, 0, H + 0.9, D / 2 + 0.3, 1.2, 1.2, 0.2); padd(B, GEO.box, 0x222222, P, 0, H + 0.9, D / 2 + 0.42, 0.06, 0.45, 0.02);
+    placeSign(P, 'MILLBROOK JUNCTION', 0, H - 0.75, D / 2 + 6.35, 7, 0.8, '#1e2a20', '#f0e6c0');
+    pbox(P, 0, 0, W / 2, D / 2);
+  },
+  church(B, P, G) {
+    const W = 10, D = 16, H = 6.5;
+    padd(B, GEO.box, 0x9a968c, P, 0, H / 2, 0, W, H, D); padd(B, GEO.prism, 0x3c3c44, P, 0, H + 0.5 * 3.4, 0, D + 0.6, 3.4, (W / 2 + 0.6) / 0.866, 0, Math.PI / 2);
+    padd(B, GEO.box, 0x8e8a80, P, 0, 7, D / 2 + 1.6, 4.2, 14, 3.4); padd(B, GEO.cone, 0x3c3c44, P, 0, 14 + 3, D / 2 + 1.6, 3.0, 6, 3.0);
+    const winC = L.sky.night ? 0xffb860 : 0x2a3848, wg = L.sky.night ? G : B;
+    for (const s of [-1, 1]) for (const z of [-5, -1.5, 2, 5.5]) padd(wg, GEO.box, winC, P, s * (W / 2 + 0.03), 3.4, z, 0.06, 2.6, 1.0);
+    padd(wg, GEO.box, winC, P, 0, 10.5, D / 2 + 3.32, 1.2, 1.6, 0.06); padd(B, GEO.box, 0x3a2a22, P, 0, 1.4, D / 2 + 3.32, 1.6, 2.8, 0.06);
+    pbox(P, 0, 0, W / 2, D / 2); pbox(P, 0, D / 2 + 1.6, 2.1, 1.7);
+  },
+  stall(B, P, G) {
+    const col = pick([0xb8322a, 0x2e6a8a, 0x3a7a3a, 0xc88a2a]);
+    for (const x of [-1.8, 1.8]) for (const z of [-0.9, 1.3]) padd(B, GEO.box, 0x5a4632, P, x, 1.3, z, 0.12, 2.6, 0.12);
+    padd(B, GEO.box, 0x7a5e40, P, 0, 0.5, -0.2, 3.6, 1.0, 1.2); padd(B, GEO.box, 0x9a7a54, P, 0, 1.02, -0.2, 3.8, 0.06, 1.4);
+    for (let i = 0; i < 6; i++) padd(B, GEO.box, i % 2 ? 0xeee6d4 : col, P, -1.75 + i * 0.7, 2.75, 0.25, 0.7, 0.06, 2.8, -0.22);
+    padd(B, GEO.box, 0x4a3a2a, P, 0, 2.52, 1.3, 3.8, 0.08, 0.08);
+    for (let i = 0; i < 3; i++) padd(B, GEO.sph, pick([0x8e3b22, 0xa04a30, 0xd8c08a]), P, -1 + i, 1.15, -0.3, 0.22, 0.16, 0.2);
+    pbox(P, 0, -0.2, 1.9, 0.7, false);
+    for (const x of [-0.9, 0.9]) { const [wx, wz] = rotXZ(P, x, 1.3); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 2.62, bunch: null }); }
+  },
+  rack(B, P) {
+    for (const x of [-2, 2]) { padd(B, GEO.box, 0x4a3a2a, P, x, 1.5, 0, 0.14, 3, 0.14); pcirc(P, x, 0, 0.2); }
+    padd(B, GEO.box, 0x4a3a2a, P, 0, 2.95, 0, 4.3, 0.12, 0.12); padd(B, GEO.prism, 0x5a4a3a, P, 0, 3.3, 0, 4.8, 0.5, 0.7);
+    for (const x of [-1.2, 0, 1.2]) { const [wx, wz] = rotXZ(P, x, 0); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 3.05, bunch: null }); }
+  },
+  cart(B, P) {
+    padd(B, GEO.box, 0xb8322a, P, 0, 1.1, 0, 2.4, 0.9, 1.3); padd(B, GEO.box, 0xe8d8a8, P, 0, 1.6, 0, 2.5, 0.08, 1.4);
+    for (const s of [-1, 1]) padd(B, GEO.cyl, 0x2a2a2a, P, s * 0.7, 0.5, 0.7, 0.5, 0.08, 0.5, Math.PI / 2, 0, 0);
+    for (const x of [-1.1, 1.1]) padd(B, GEO.box, 0x5a4632, P, x, 2.2, 0, 0.08, 2.2, 0.08); padd(B, GEO.box, 0xe8d8a8, P, 0, 3.3, 0, 2.8, 0.06, 1.8);
+    pcirc(P, 0, 0, 1.3);
+    for (const x of [-0.6, 0.6]) { const [wx, wz] = rotXZ(P, x, 0.75); FOOD_SLOTS.push({ x: wx, z: wz, tx: wx, tz: wz, top: P.y + 3.4, bunch: null }); }
+  },
+  fountain(B, P) {
+    padd(B, GEO.cyl, 0x8a8478, P, 0, 0.4, 0, 2.6, 0.8, 2.6); padd(B, GEO.cyl, 0x2a4a58, P, 0, 0.78, 0, 2.3, 0.04, 2.3);
+    padd(B, GEO.cyl8, 0x9a948a, P, 0, 1.6, 0, 0.3, 1.8, 0.3); padd(B, GEO.cyl, 0x8a8478, P, 0, 2.5, 0, 1.0, 0.2, 1.0);
+    pcirc(P, 0, 0, 2.7);
+  },
   fence(B, P) {
     const dx = P.x1 - P.x0, dz = P.z1 - P.z0, len = Math.hypot(dx, dz), n = Math.ceil(len / 3), a = Math.atan2(dx, dz);
     for (let i = 0; i <= n; i++) { const x = P.x0 + dx * i / n, z = P.z0 + dz * i / n, y = groundH(x, z); B.add(GEO.box, 0x6b5636, M(x, y + 0.6, z, 0, a, 0, 0.16, 1.4, 0.16)); }
@@ -1199,13 +1394,22 @@ const PROPS = {
   }
 };
 
+// railway along the north edge of the village, with a trestle bridge over the river
+function buildRail() {
+  const B = new Builder(), z0 = L.captive.z, y = L.base + 0.08;
+  for (let x = -WORLD - 40; x < WORLD + 40; x += 1.1) B.add(GEO.box, 0x3e3026, M(x, y, z0, 0, 0, 0, 0.32, 0.16, 2.8));
+  for (const s of [-0.72, 0.72]) B.add(GEO.box, 0x8a8a8a, M(0, y + 0.16, z0 + s, 0, 0, 0, 2 * WORLD + 80, 0.14, 0.1));
+  for (let x = -WORLD - 10; x < WORLD + 10; x += 4) { const g = groundH(x, z0); if (g > y - 0.6) continue; for (const s of [-1.3, 1.3]) B.add(GEO.box, 0x4a3a2a, M(x, (g + y) / 2 - 0.3, z0 + s, 0, 0, 0, 0.35, y - g + 0.6, 0.35)); B.add(GEO.box, 0x4a3a2a, M(x, y - 0.25, z0, 0, 0, 0, 0.3, 0.3, 3.2)); }
+  worldRoot.add(B.mesh(propMat));
+}
+
 const MTN_GEO = (() => { const g = new THREE.IcosahedronGeometry(1, 3); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i); const n = 0.75 + fbm(x * 2 + 5, z * 2 + y) * 0.6; y = Math.max(0, y) * n; p.setXYZ(i, x * (0.9 + n * 0.15), y, z * (0.9 + n * 0.15)); } g.computeVertexNormals(); g.userData.keep = true; return g; })();
 // ---------- build level ----------
 const TREE_MESH = { trunks: null, leaves: null };
 function disposeTree(o) { o.traverse(c => { if (c.geometry && !c.geometry.userData.keep) c.geometry.dispose(); }); }
 function clearWorld() {
   for (const c of [...worldRoot.children]) { worldRoot.remove(c); disposeTree(c); }
-  COL.reset(); TREES = []; PT.clear();
+  COL.reset(); TREES = []; HOUSES = []; FOOD_SLOTS = []; LAMPS = []; PT.clear();
 }
 [leafGeo, trunkGeo, bladeGeo, reedGeo, bunchGeo].forEach(g => g.userData.keep = true);
 Object.values(GEO).forEach(g => g.userData.keep = true);
@@ -1216,7 +1420,9 @@ function buildWorld(level) {
   FLAT = [];
   for (const p of L.props) { const pad = PROP_PADS[p.t]; if (!pad) continue; const sw = Math.abs(Math.sin(p.ry || 0)) > 0.5; FLAT.push({ x: p.x, z: p.z, hx: sw ? pad[1] : pad[0], hz: sw ? pad[0] : pad[1], h: 0 }); }
   const cp = L.captive; FLAT.push({ x: cp.x, z: cp.z, hx: 11, hz: 11, h: 0 });
-  FLAT.forEach(f => { f.h = 0; const prev = FLAT; FLAT = []; f.h = rawGround(f.x, f.z); FLAT = prev; f.h = Math.max(f.h, 1.0); });
+  const STREET_COL = { stone: 0x5c5850, gravel: 0x3a352f };
+  for (const f of L.streets || []) FLAT.push({ x: (f.x0 + f.x1) / 2, z: (f.z0 + f.z1) / 2, hx: (f.x1 - f.x0) / 2, hz: (f.z1 - f.z0) / 2, h: 0, col: new THREE.Color(STREET_COL[f.k] || 0x47443e) });
+  FLAT.forEach(f => { f.h = 0; const prev = FLAT; FLAT = []; f.h = rawGround(f.x, f.z); FLAT = prev; f.h = Math.max(f.h, 1.0); if (L.town) f.h = L.base; });
   const S = 2 * WORLD + 160;
   // sky & lights
   const sk = L.sky; skyMat.uniforms.top.value.set(sk.top); skyMat.uniforms.hor.value.set(sk.hor); skyMat.uniforms.sunDir.value.set(...sk.sun).normalize();
@@ -1238,7 +1444,7 @@ function buildWorld(level) {
     tmp.copy(g1).lerp(g2, fbm(x * 0.05, z * 0.05));
     tmp.lerp(dirt, smooth((fbm(x * 0.09 + 40, z * 0.09) - 0.55) * 4) * 0.5);
     if (inField(x, z, 1.5)) tmp.lerp(soil, 0.45 + fbm(x * 0.3, z * 0.3) * 0.25);
-    for (const f of FLAT) { const d = Math.max(Math.abs(x - f.x) - f.hx, Math.abs(z - f.z) - f.hz); if (d < 2.5) tmp.lerp(dirt, smooth(1 - d / 2.5) * 0.7); }
+    for (const f of FLAT) { const d = Math.max(Math.abs(x - f.x) - f.hx, Math.abs(z - f.z) - f.hz); if (f.col) { if (d < 0.8) tmp.lerp(f.col, smooth((0.8 - d) / 1.6) * 0.9); } else if (d < 2.5) tmp.lerp(dirt, smooth(1 - d / 2.5) * 0.7); }
     if (wd < 22) tmp.lerp(mud, smooth((22 - wd) / 7));
     if (h < 0.15) tmp.lerp(wet, smooth((0.15 - h) / 1.6));
     colA[i * 3] = tmp.r; colA[i * 3 + 1] = tmp.g; colA[i * 3 + 2] = tmp.b;
@@ -1256,8 +1462,9 @@ function buildWorld(level) {
   const water = new THREE.Mesh(new THREE.PlaneGeometry(S, S), waterMat); water.rotation.x = -Math.PI / 2; water.position.y = 0; water.renderOrder = 2; worldRoot.add(water);
   // props
   const B = new Builder(), BT = new Builder(), G = new Builder();
-  for (const p of L.props) { const P = Object.assign({ ry: 0 }, p); if (p.t !== 'fence') P.y = groundH(p.x, p.z); else P.y = 0; const fn = PROPS[p.t]; if (fn) fn(['farmhouse', 'barn', 'shed', 'outhouse', 'packing', 'sawmill'].includes(p.t) ? BT : B, P, G); }
+  for (const p of L.props) { const P = Object.assign({ ry: 0 }, p); if (p.t !== 'fence') P.y = groundH(p.x, p.z); else P.y = 0; const fn = PROPS[p.t]; if (fn) fn(['farmhouse', 'barn', 'shed', 'outhouse', 'packing', 'sawmill', 'house', 'shop', 'station'].includes(p.t) ? BT : B, P, G); }
   worldRoot.add(B.mesh(propMat)); worldRoot.add(BT.mesh(propMatTex)); worldRoot.add(G.mesh(glowMat, false));
+  if (L.town) buildRail();
   // banana trees
   for (const f of L.fields) {
     for (let x = f.x0 + 2.5; x < f.x1 - 1; x += 6.2) for (let z = f.z0 + 2.5; z < f.z1 - 1; z += 6.2) {
@@ -1269,16 +1476,19 @@ function buildWorld(level) {
   }
   for (let i = 0; i < 26; i++) { // scattered wild banana trees
     const tx = srange(-WORLD + 8, WORLD - 8), tz = srange(-WORLD + 8, WORLD - 8);
-    if (waterDist(tx, tz) < 22 || inField(tx, tz, 4) || Math.hypot(tx - cp.x, tz - cp.z) < 18) continue;
+    if (waterDist(tx, tz) < 22 || inField(tx, tz, 4) || onStreet(tx, tz, 4) || indoorOf(tx, tz, 3) || Math.hypot(tx - cp.x, tz - cp.z) < 18) continue;
     const probe = { x: tx, z: tz }; if (COL.resolve(probe, 3)) continue;
     TREES.push({ x: tx, z: tz, h: srange(3.6, 5.2), lean: srange(-0.1, 0.1), la: srange(0, TAU), y: groundH(tx, tz), bunch: null });
   }
-  TREES.forEach(t => COL.addCircle(t.x, t.z, 0.42));
-  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ map: TEX.bark, roughness: 0.9 }), TREES.length);
-  const LPT = 8, leaves = new THREE.InstancedMesh(leafGeo, new THREE.MeshStandardMaterial({ map: TEX.leaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 }), TREES.length * LPT);
+  // in the village the trees are only scenery and the food hangs on the market stalls
+  const PLANT = TREES; if (L.food === 'meat') TREES = FOOD_SLOTS;
+  PLANT.forEach(t => COL.addCircle(t.x, t.z, 0.42));
+  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ map: TEX.bark, roughness: 0.9 }), Math.max(1, PLANT.length));
+  const LPT = 8, leaves = new THREE.InstancedMesh(leafGeo, new THREE.MeshStandardMaterial({ map: TEX.leaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 }), Math.max(1, PLANT.length) * LPT);
   leaves.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: TEX.leaf, alphaTest: 0.45 });
   const o = new THREE.Object3D(), lc = new THREE.Color();
-  TREES.forEach((t, i) => {
+  trunks.count = PLANT.length; leaves.count = PLANT.length * LPT;
+  PLANT.forEach((t, i) => {
     o.position.set(t.x, t.y - 0.2, t.z); o.rotation.set(t.lean * Math.cos(t.la), 0, t.lean * Math.sin(t.la)); o.scale.set(1, t.h, 1); o.updateMatrix(); trunks.setMatrixAt(i, o.matrix);
     const topX = t.x + Math.sin(t.lean * Math.sin(t.la)) * -t.h, topZ = t.z + Math.sin(t.lean * Math.cos(t.la)) * t.h; t.tx = topX; t.tz = topZ; t.top = t.y - 0.2 + t.h;
     for (let k = 0; k < LPT; k++) {
@@ -1309,7 +1519,7 @@ function buildWorld(level) {
   // rocks
   const rocks = new THREE.InstancedMesh(GEO.dode, new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: 0.95, flatShading: true }), 110); let rk = 0;
   for (let tries = 0; tries < 2000 && rk < 110; tries++) {
-    const x = srange(-WORLD, WORLD), z = srange(-WORLD, WORLD), wd = waterDist(x, z); if (inField(x, z, 2)) continue;
+    const x = srange(-WORLD, WORLD), z = srange(-WORLD, WORLD), wd = waterDist(x, z); if (inField(x, z, 2) || onStreet(x, z, 2) || indoorOf(x, z, 2)) continue;
     if (wd < 9 || (wd > 30 && srnd() < 0.7)) continue;
     const sp = waterPoint(L.start); if (Math.hypot(x - sp.x, z - sp.z) < 12 || Math.hypot(x - L.captive.x, z - L.captive.z) < 14) continue;
     const s = srange(0.3, wd < 22 ? 1.4 : 0.8); const probe = { x, z }; if (COL.resolve(probe, s + 1)) continue;
@@ -1456,6 +1666,20 @@ function makeLeopard() {
 }
 // ----- captive rigs -----
 const linkGeo = new THREE.TorusGeometry(0.11, 0.032, 6, 12); linkGeo.userData.keep = true;
+// steel cage with a hinged door on its +z side, shared by the flatbed truck and the circus train
+function buildCage(r, x0, y0, z0) {
+  const cg = r.cage = grp(r.g, x0, y0, z0); r.bars = [];
+  const W = 2.3, H = 1.85, D = 3.4, frame = mat(0x4a4e50, { metalness: 0.7, roughness: 0.4 }), bar = mat(0x8a8f92, { metalness: 0.8, roughness: 0.35 });
+  for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) mk(GEO.box, frame, x, H / 2, z, 0.1, H, 0.1, cg);
+  for (const yy of [0.04, H]) { mk(GEO.box, frame, 0, yy, -D / 2, W, 0.1, 0.1, cg); mk(GEO.box, frame, 0, yy, D / 2, W, 0.1, 0.1, cg); mk(GEO.box, frame, -W / 2, yy, 0, 0.1, 0.1, D, cg); mk(GEO.box, frame, W / 2, yy, 0, 0.1, 0.1, D, cg); }
+  mk(GEO.box, mat(0x3f4446, { metalness: 0.6, roughness: 0.5 }), 0, H + 0.05, 0, W, 0.04, D, cg);
+  for (const s of [-1, 1]) for (let z = -D / 2 + 0.22; z < D / 2 - 0.1; z += 0.24) { const b = mk(GEO.cyl8, bar, s * W / 2, H / 2, z, 0.03, H, 0.03, cg); b.userData.side = s; r.bars.push(b); }
+  for (let x = -W / 2 + 0.22; x < W / 2 - 0.1; x += 0.24) { const b = mk(GEO.cyl8, bar, x, H / 2, -D / 2, 0.03, H, 0.03, cg); b.userData.side = 0; r.bars.push(b); }
+  r.door = grp(cg, -W / 2, 0, D / 2);
+  for (let x = 0.12; x < W - 0.05; x += 0.24) mk(GEO.cyl8, bar, x, H / 2, 0, 0.03, H, 0.03, r.door);
+  mk(GEO.box, frame, W / 2, H * 0.3, 0, W, 0.08, 0.08, r.door); mk(GEO.box, frame, W / 2, H * 0.7, 0, W, 0.08, 0.08, r.door);
+  mk(GEO.box, mat(0x6a6a30, { metalness: 0.6 }), W - 0.1, H * 0.5, 0.08, 0.18, 0.25, 0.12, r.door);
+}
 function makeRig(cp) {
   const r = { type: cp.type, g: new THREE.Group(), x: cp.x, z: cp.z, y: groundH(cp.x, cp.z) };
   worldRoot.add(r.g);
@@ -1492,19 +1716,47 @@ function makeRig(cp) {
     for (const s of [-1, 1]) for (const z of [-3.4, -2.2, 3.4]) B.add(GEO.cyl, 0x151515, M(cp.x + s * 1.18, y + 0.52, cp.z + z, 0, 0, Math.PI / 2, 0.52, 0.38, 0.52));
     for (const s of [-1, 1]) B.add(GEO.box, 0xc8a83a, M(cp.x + s * 0.7, y + 1.35, cp.z - 1.1, 0, 0, 0, 0.06, 0.02, 6.4));
     COL.addBox(cp.x, cp.z, 1.5, 4.8, false);
-    // cage (dynamic)
-    const cg = r.cage = grp(r.g, cp.x, bed, cp.z - 1.2); r.bars = [];
-    const W = 2.3, H = 1.85, D = 3.4, frame = mat(0x4a4e50, { metalness: 0.7, roughness: 0.4 }), bar = mat(0x8a8f92, { metalness: 0.8, roughness: 0.35 });
-    for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) mk(GEO.box, frame, x, H / 2, z, 0.1, H, 0.1, cg);
-    for (const yy of [0.04, H]) { mk(GEO.box, frame, 0, yy, -D / 2, W, 0.1, 0.1, cg); mk(GEO.box, frame, 0, yy, D / 2, W, 0.1, 0.1, cg); mk(GEO.box, frame, -W / 2, yy, 0, 0.1, 0.1, D, cg); mk(GEO.box, frame, W / 2, yy, 0, 0.1, 0.1, D, cg); }
-    mk(GEO.box, mat(0x3f4446, { metalness: 0.6, roughness: 0.5 }), 0, H + 0.05, 0, W, 0.04, D, cg);
-    for (const s of [-1, 1]) for (let z = -D / 2 + 0.22; z < D / 2 - 0.1; z += 0.24) { const b = mk(GEO.cyl8, bar, s * W / 2, H / 2, z, 0.03, H, 0.03, cg); b.userData.side = s; r.bars.push(b); }
-    for (let x = -W / 2 + 0.22; x < W / 2 - 0.1; x += 0.24) { const b = mk(GEO.cyl8, bar, x, H / 2, -D / 2, 0.03, H, 0.03, cg); b.userData.side = 0; r.bars.push(b); }
-    r.door = grp(cg, -W / 2, 0, D / 2);
-    for (let x = 0.12; x < W - 0.05; x += 0.24) mk(GEO.cyl8, bar, x, H / 2, 0, 0.03, H, 0.03, r.door);
-    mk(GEO.box, frame, W / 2, H * 0.3, 0, W, 0.08, 0.08, r.door); mk(GEO.box, frame, W / 2, H * 0.7, 0, W, 0.08, 0.08, r.door);
-    mk(GEO.box, mat(0x6a6a30, { metalness: 0.6 }), W - 0.1, H * 0.5, 0.08, 0.18, 0.25, 0.12, r.door);
+    buildCage(r, cp.x, bed, cp.z - 1.2);
     r.feedPt = { x: cp.x, z: cp.z - 1.2 }; r.feedR = 5.2; r.leoBase = { x: cp.x, z: cp.z - 1.2, y: bed + 0.05 }; r.radius = 0.25;
+  } else if (cp.type === 'train') {
+    // circus train stopped at the platform: engine at the +x end, the leopard's flatcar in the middle
+    const z = cp.z, y0 = r.y + 0.31, fl = y0 + 1.05, red = 0xa8282a, gold = 0xd8b23a;
+    const wheels = (x0, x1, n, rad = 0.45) => { for (let i = 0; i < n; i++) { const x = lerp(x0, x1, n > 1 ? i / (n - 1) : 0.5); for (const s of [-1, 1]) B.add(GEO.cyl, 0x1a1a1a, M(x, y0 + rad, z + s * 0.78, Math.PI / 2, 0, 0, rad, 0.14, rad)); } };
+    const frame = (x0, x1) => { B.add(GEO.box, 0x222222, M((x0 + x1) / 2, fl - 0.25, z, 0, 0, 0, x1 - x0, 0.3, 2.4)); for (const x of [x0, x1]) B.add(GEO.box, 0x3a3a3a, M(x, fl - 0.3, z, 0, 0, 0, 0.3, 0.2, 0.5)); };
+    // engine
+    frame(40, 54.5); wheels(41.5, 43.5, 2, 0.5); wheels(52, 53.6, 2, 0.45);
+    for (const x of [45.2, 47.4, 49.6]) for (const s of [-1, 1]) { B.add(GEO.cyl, 0x8a1e1e, M(x, y0 + 0.85, z + s * 1.0, Math.PI / 2, 0, 0, 0.85, 0.12, 0.85)); B.add(GEO.cyl8, 0x2a2a2a, M(x, y0 + 0.85, z + s * 1.08, Math.PI / 2, 0, 0, 0.18, 0.1, 0.18)); }
+    for (const s of [-1, 1]) B.add(GEO.box, 0x9a9a9a, M(47.4, y0 + 0.85, z + s * 1.12, 0, 0, 0, 4.6, 0.12, 0.06));
+    B.add(GEO.cyl, 0x1c1c1e, M(48.6, fl + 1.25, z, 0, 0, Math.PI / 2, 1.2, 9.4, 1.2)); B.add(GEO.cyl, 0x2a2a2c, M(53.35, fl + 1.25, z, 0, 0, Math.PI / 2, 1.25, 0.3, 1.25));
+    for (const x of [45, 47.6, 50.2]) B.add(GEO.cyl, gold, M(x, fl + 1.25, z, 0, 0, Math.PI / 2, 1.22, 0.12, 1.22));
+    B.add(GEO.cyl, 0x1c1c1e, M(52.2, fl + 3.0, z, 0, 0, 0, 0.36, 1.4, 0.36)); B.add(GEO.cyl, 0x1c1c1e, M(52.2, fl + 3.8, z, 0, 0, 0, 0.55, 0.3, 0.55));
+    B.add(GEO.sph, gold, M(49, fl + 2.4, z, 0, 0, 0, 0.5, 0.45, 0.5)); B.add(GEO.sph, 0x1c1c1e, M(46.3, fl + 2.35, z, 0, 0, 0, 0.4, 0.4, 0.4));
+    B.add(GEO.box, 0x6a1a1a, M(42.2, fl + 1.6, z, 0, 0, 0, 3.6, 3.2, 2.9)); B.add(GEO.box, 0x1a1a1a, M(42.2, fl + 3.3, z, 0, 0, 0, 4.2, 0.18, 3.3));
+    for (const s of [-1, 1]) B.add(GEO.box, L.sky.night ? 0xffc46a : 0x24323c, M(42.6, fl + 2.2, z + s * 1.46, 0, 0, 0, 1.4, 1.0, 0.04));
+    B.add(GEO.prism, 0x8a1e1e, M(55.0, y0 + 0.4, z, 0, Math.PI / 2, 0, 2.4, 0.6, 0.9));
+    B.add(GEO.box, 0xfff2c0, M(54.2, fl + 2.1, z, 0, 0, 0, 0.3, 0.5, 0.5));
+    // coal tender
+    frame(31, 39); wheels(32, 38, 3); B.add(GEO.box, 0x1e3a2a, M(35, fl + 1.0, z, 0, 0, 0, 8, 2.0, 2.9)); B.add(GEO.box, 0x111111, M(35, fl + 2.05, z, 0, 0, 0, 7.4, 0.2, 2.5)); B.add(GEO.box, gold, M(35, fl + 1.7, z, 0, 0, 0, 8.05, 0.14, 2.95));
+    // circus wagons and the caboose
+    const wagon = (x0, x1, col) => {
+      frame(x0, x1); wheels(x0 + 1.2, x1 - 1.2, 4, 0.42);
+      const cx = (x0 + x1) / 2, L2 = x1 - x0;
+      B.add(GEO.box, col, M(cx, fl + 1.6, z, 0, 0, 0, L2, 3.2, 2.9)); B.add(GEO.box, 0x3a2a24, M(cx, fl + 3.3, z, 0, 0, 0, L2 + 0.4, 0.2, 3.2));
+      for (const y of [0.35, 2.9]) B.add(GEO.box, gold, M(cx, fl + y, z, 0, 0, 0, L2 + 0.04, 0.12, 2.95));
+      for (let x = x0 + 1; x < x1 - 0.5; x += 2) B.add(GEO.box, gold, M(x, fl + 1.6, z, 0, 0, 0, 0.12, 2.5, 2.95));
+      for (const sd of [-1, 1]) { const sg = signMesh('MAESTRO BROS. CIRCUS', Math.min(9, L2 - 2), 1.1, '#7a1414', '#f6d36a'); sg.position.set(cx, fl + 1.65, z + sd * 1.48); sg.rotation.y = sd > 0 ? 0 : Math.PI; r.g.add(sg); }
+      COL.addBox(cx, z, L2 / 2, 1.5, true);
+    };
+    wagon(17, 29, red); wagon(-13, -1, 0x2e4a8a); wagon(-27, -15, red);
+    frame(-39, -30); wheels(-38, -31, 3); B.add(GEO.box, 0x6a3a22, M(-34.5, fl + 1.5, z, 0, 0, 0, 9, 3.0, 2.9)); B.add(GEO.box, 0x6a3a22, M(-34.5, fl + 3.4, z, 0, 0, 0, 3, 1.0, 2.2));
+    COL.addBox(-34.5, z, 4.5, 1.5, true); COL.addBox(35, z, 4, 1.5, true); COL.addBox(47.3, z, 7.2, 1.5, true);
+    // the flatcar that carries the leopard
+    frame(2, 14); wheels(3.2, 12.8, 4, 0.42); B.add(GEO.box, 0x5a4632, M(8, fl, z, 0, 0, 0, 12, 0.24, 3.4));
+    for (let x = 2.4; x <= 13.6; x += 1.6) for (const s of [-1, 1]) B.add(GEO.box, 0x4a3a2a, M(x, fl + 0.4, z + s * 1.62, 0, 0, 0, 0.14, 0.7, 0.14));
+    COL.addBox(8, z, 6, 1.75, false);
+    buildCage(r, cp.x, fl + 0.12, z);
+    r.stack = { x: 52.2, y: fl + 4.1, z };
+    r.feedPt = { x: cp.x, z }; r.feedR = 5.4; r.leoBase = { x: cp.x, z, y: fl + 0.17 }; r.radius = 0.25;
   } else {
     const y = r.y; r.top = y + 7.6;
     for (const s of [-1, 1]) { B.add(GEO.box, 0x5a4632, M(cp.x + s * 3.4, y + 3.8, cp.z, 0, 0, 0, 0.45, 7.8, 0.45)); B.add(GEO.box, 0x5a4632, M(cp.x + s * 3.4, y + 1.8, cp.z + s * 0, s * 0.0, 0, 0, 0.3, 0.3, 3.4)); B.add(GEO.box, 0x4a3a28, M(cp.x + s * 3.4, y + 2.4, cp.z + 1.2, -0.6, 0, 0, 0.22, 4.2, 0.22)); B.add(GEO.box, 0x4a3a28, M(cp.x + s * 3.4, y + 2.4, cp.z - 1.2, 0.6, 0, 0, 0.22, 4.2, 0.22)); COL.addCircle(cp.x + s * 3.4, cp.z, 0.5); }
@@ -1522,7 +1774,7 @@ function makeRig(cp) {
     for (const [x, z] of [[-W / 2, -D / 2], [W / 2, -D / 2], [-W / 2, D / 2], [W / 2, D / 2]]) { const c = mk(GEO.cyl8, mat(0xb8a070, { roughness: 1 }), x / 2, H + 0.5, z / 2, 0.025, 1.3, 0.025, cg); c.rotation.z = x > 0 ? 0.6 : -0.6; c.rotation.x = z > 0 ? -0.6 : 0.6; }
     r.feedPt = { x: cp.x, z: cp.z }; r.feedR = 5.0; r.cageY = y + 7.4 - 4.2; r.leoBase = { x: cp.x, z: cp.z, y: r.cageY + 0.08 }; r.radius = 0.2;
   }
-  worldRoot.add(B.mesh(propMat));
+  (r.type === 'train' ? r.g : worldRoot).add(B.mesh(propMat));
   return r;
 }
 // ----- farmers -----
@@ -1541,11 +1793,18 @@ function makeTool(kind) {
   else if (kind === 'pitchfork') { mk(GEO.cyl8, FM.handle, 0, 0, 0.55, 0.028, 1.5, 0.028, t).rotation.x = Math.PI / 2; mk(GEO.box, FM.steel, 0, 0, 1.3, 0.3, 0.03, 0.04, t); for (let i = -1; i <= 1; i++) mk(GEO.cyl8, FM.steel, i * 0.13, 0, 1.48, 0.012, 0.36, 0.012, t).rotation.x = Math.PI / 2; }
   else if (kind === 'shovel') { mk(GEO.cyl8, FM.handle, 0, 0, 0.5, 0.028, 1.2, 0.028, t).rotation.x = Math.PI / 2; mk(GEO.box, FM.steel, 0, 0, 1.25, 0.3, 0.025, 0.36, t); }
   else if (kind === 'chainsaw') { mk(GEO.box, FM.orange, 0, 0, 0.12, 0.24, 0.3, 0.42, t); mk(GEO.box, FM.steel, 0, -0.02, 0.72, 0.04, 0.12, 0.9, t); mk(GEO.box, mat(0x222222), 0, 0.2, 0.05, 0.05, 0.05, 0.3, t); }
+  else if (kind === 'baton') { mk(GEO.cyl8, mat(0x161616, { roughness: 0.5 }), 0, 0, 0.3, 0.035, 0.62, 0.035, t).rotation.x = Math.PI / 2; mk(GEO.cyl8, FM.handle, 0, 0, 0.04, 0.04, 0.14, 0.04, t).rotation.x = Math.PI / 2; }
+  else if (kind === 'netgun') { mk(GEO.box, mat(0x2a2e34, { metalness: 0.5 }), 0, 0.02, 0.18, 0.1, 0.16, 0.46, t); mk(GEO.cyl8, FM.steel, 0, 0.06, 0.55, 0.09, 0.4, 0.09, t).rotation.x = Math.PI / 2; mk(GEO.sph, mat(0xd8d0b0), 0, 0.06, 0.78, 0.1, 0.1, 0.08, t); }
+  else if (kind === 'whip') { mk(GEO.cyl8, mat(0x3a2418), 0, 0, 0.12, 0.03, 0.3, 0.03, t).rotation.x = Math.PI / 2; for (let i = 0; i < 6; i++) { const sg = mk(GEO.cyl8, mat(0x2a1a10), 0, -0.05 - i * i * 0.012, 0.36 + i * 0.22, 0.014, 0.24, 0.014, t); sg.rotation.x = Math.PI / 2 + i * 0.12; } }
   return t;
 }
+const LOOK = {
+  police: { shirt: [0x1d2a48], over: [0x161c2c], hat: ['helmet'] }, sergeant: { shirt: [0x1d2a48], over: [0x161c2c], hat: ['peak'] }, ring: { shirt: [0xb0202a], over: [0xe8e2d2], hat: ['top'] },
+  civ: { shirt: [0xb04a3a, 0x3e6b8a, 0xd8c8a0, 0x6a8a4a, 0x8a4f7a, 0xd8a43a, 0x6a6a72, 0xe0a0a8, 0x4a8a8a], over: [0x4a4038, 0x2e3440, 0x5a5248, 0x6a4a3a, 0x3a3a3a], hat: ['none', 'none', 'cap', 'straw', 'bonnet'] }
+};
 function makeFarmer(tool, opt = {}) {
-  const f = { g: new THREE.Group() }; const g = f.g;
-  const skin = pick(FM.skin), shirt = opt.foreman ? mat(0xb8302a) : pick(FM.shirt), over = opt.foreman ? mat(0x2a2a2a) : pick(FM.over);
+  const f = { g: new THREE.Group() }; const g = f.g, lk = LOOK[opt.look];
+  const skin = pick(FM.skin), shirt = lk ? mat(pick(lk.shirt), { roughness: 0.9 }) : opt.foreman ? mat(0xb8302a) : pick(FM.shirt), over = lk ? mat(pick(lk.over), { roughness: 0.92 }) : opt.foreman ? mat(0x2a2a2a) : pick(FM.over);
   f.hips = grp(g, 0, 0.98, 0);
   f.legs = []; f.knees = [];
   for (const s of [-1, 1]) {
@@ -1565,8 +1824,13 @@ function makeFarmer(tool, opt = {}) {
   for (const s of [-1, 1]) { mk(GEO.sph, FM.eye, s * 0.055, 0.14, 0.135, 0.018, 0.018, 0.012, f.head); mk(GEO.sph, skin, s * 0.15, 0.1, 0, 0.03, 0.05, 0.03, f.head); }
   if (Math.random() < 0.55) mk(GEO.sph, pick(FM.hair), 0, 0.0, 0.07, 0.13, 0.08, 0.11, f.head);
   f.hat = grp(f.head, 0, 0.25, 0);
-  const hk = opt.foreman ? 'hard' : pick(['straw', 'straw', 'straw', 'cap']);
-  if (hk === 'straw') { mk(GEO.cyl, FM.straw, 0, 0, 0, 0.34, 0.025, 0.34, f.hat); mk(GEO.cyl, FM.straw, 0, 0.08, 0, 0.16, 0.16, 0.16, f.hat); mk(GEO.cyl, FM.band, 0, 0.03, 0, 0.165, 0.04, 0.165, f.hat); }
+  const hk = lk ? pick(lk.hat) : opt.foreman ? 'hard' : pick(['straw', 'straw', 'straw', 'cap']), navy = mat(0x141c30, { roughness: 0.7 });
+  if (hk === 'helmet') { mk(GEO.sph, navy, 0, 0.0, 0, 0.17, 0.27, 0.18, f.hat); mk(GEO.cyl, navy, 0, -0.07, 0, 0.2, 0.025, 0.21, f.hat); mk(GEO.box, FM.steel, 0, 0.02, 0.17, 0.06, 0.07, 0.02, f.hat); mk(GEO.sph, FM.steel, 0, 0.27, 0, 0.03, 0.03, 0.03, f.hat); }
+  else if (hk === 'peak') { mk(GEO.cyl, navy, 0, -0.02, 0, 0.18, 0.1, 0.18, f.hat); mk(GEO.cyl, mat(0xe8e8e8), 0, -0.04, 0, 0.181, 0.03, 0.181, f.hat); mk(GEO.box, mat(0x111111, { roughness: 0.3 }), 0, -0.07, 0.17, 0.2, 0.02, 0.12, f.hat); }
+  else if (hk === 'top') { mk(GEO.cyl, mat(0x141414), 0, 0.12, 0, 0.15, 0.34, 0.15, f.hat); mk(GEO.cyl, mat(0x141414), 0, -0.04, 0, 0.27, 0.02, 0.27, f.hat); mk(GEO.cyl, mat(0xb0202a), 0, 0.0, 0, 0.152, 0.05, 0.152, f.hat); }
+  else if (hk === 'bonnet') { mk(GEO.sph, mat(pick([0xe8e0d0, 0xc8a0b0, 0x9ab0c8])), 0, -0.06, -0.02, 0.18, 0.16, 0.19, f.hat); }
+  else if (hk === 'none') { }
+  else if (hk === 'straw') { mk(GEO.cyl, FM.straw, 0, 0, 0, 0.34, 0.025, 0.34, f.hat); mk(GEO.cyl, FM.straw, 0, 0.08, 0, 0.16, 0.16, 0.16, f.hat); mk(GEO.cyl, FM.band, 0, 0.03, 0, 0.165, 0.04, 0.165, f.hat); }
   else if (hk === 'cap') { const c = pick(FM.cap); mk(GEO.sph, c, 0, -0.02, 0, 0.16, 0.1, 0.17, f.hat); mk(GEO.box, c, 0, -0.04, 0.17, 0.2, 0.02, 0.16, f.hat); }
   else { mk(GEO.sph, FM.hard, 0, -0.02, 0, 0.18, 0.12, 0.19, f.hat); mk(GEO.cyl, FM.hard, 0, -0.06, 0, 0.21, 0.02, 0.22, f.hat); }
   f.arms = []; f.elbows = [];
@@ -1609,7 +1873,7 @@ const G = {
 };
 G.touch = matchMedia('(pointer: coarse)').matches; // phones/tablets get on-screen controls (see touch.js)
 const P = { x: 0, z: 0, y: 2, yaw: 0, pitch: 0, vx: 0, vz: 0, alive: false };
-let farmers = [], dogs = [], bunches = [], pickups = [], hats = [], leo = null, rig = null, exfil = { x: 0, z: 0 }, ROUTES = [];
+let farmers = [], dogs = [], civs = [], nets = [], bunches = [], pickups = [], hats = [], leo = null, rig = null, exfil = { x: 0, z: 0 }, ROUTES = [];
 const keys = {}; let mouseDown = false;
 const TKEYS = {}, TSTICK = { x: 0, y: 0 }; // touch: held action buttons and the analog move stick
 // ---------- key bindings: [rebindable primary, fixed alternate] ----------
@@ -1651,6 +1915,7 @@ function buildRoutes() {
 function nearestWp(a) { let bi = 0, bd = 1e9; a.route.forEach((p, i) => { const d = Math.hypot(p.x - a.x, p.z - a.z); if (d < bd) { bd = d; bi = i; } }); return bi; }
 // route through the pen gate when the agent and its target are on opposite sides of the level-1 fence
 function viaGate(a, tx, tz) {
+  if (HOUSES.length) return viaDoor(a, tx, tz);
   if (!rig || rig.type !== 'chain') return [tx, tz];
   const cx = rig.x, cz = rig.z, R = 9, gx = cx - R, gz = cz;
   const inA = Math.hypot(a.x - cx, a.z - cz) < R, inT = Math.hypot(tx - cx, tz - cz) < R;
@@ -1666,6 +1931,13 @@ function viaGate(a, tx, tz) {
   if (inT && Math.abs(dg) < 0.3) return [gx - 1, gz];
   const tn = ta + Math.sign(dg || 1) * Math.min(Math.abs(dg), 0.6);
   return [cx + Math.cos(tn) * 12.5, cz + Math.sin(tn) * 12.5];
+}
+// village houses: walk out through the door before heading elsewhere, and in through it to reach a target inside
+function viaDoor(a, tx, tz) {
+  const hA = indoorOf(a.x, a.z, 0.4), hT = indoorOf(tx, tz);
+  if (hA === hT) return [tx, tz];
+  if (hA) return Math.hypot(a.x - hA.door.x, a.z - hA.door.z) < 1.3 ? [hA.out.x, hA.out.z] : [hA.door.x, hA.door.z];
+  return Math.hypot(a.x - hT.door.x, a.z - hT.door.z) < 3.0 ? [hT.inn.x, hT.inn.z] : [hT.out.x, hT.out.z];
 }
 function stepAgent(a, tx, tz, spd, dt, r, turn, waterMul = 0.45) {
   [tx, tz] = viaGate(a, tx, tz);
@@ -1683,7 +1955,7 @@ function stepAgent(a, tx, tz, spd, dt, r, turn, waterMul = 0.45) {
 class Farmer {
   constructor(x, z, route, opt = {}) {
     this.tool = opt.tool || pick(L.enemies.tools); this.T = TOOLS[this.tool]; this.foreman = !!opt.foreman;
-    this.m = makeFarmer(this.tool, { lantern: L.enemies.lanterns, foreman: this.foreman });
+    this.m = makeFarmer(this.tool, { lantern: L.enemies.lanterns, foreman: this.foreman, look: opt.look || L.enemies.look }); this.netCool = rand(2, 4); this.aimT = 0;
     this.name = opt.name || pick(FARMER_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
     this.state = 'patrol'; this.aware = 0; this.hp = this.foreman ? 220 : 100; this.atk = 0; this.atkEl = 0; this.cool = 0; this.hitDone = false;
     this.lk = { x, z }; this.lost = 0; this.walk = rand(0, 10); this.spd = 0; this.stun = 0; this.kx = 0; this.kz = 0; this.side = 0; this.sideT = 0;
@@ -1700,10 +1972,11 @@ class Farmer {
     if (this.state !== 'chase') {
       G.stats.spotted++;
       if (shout) {
-        SFX.shout(this, this.foreman ? 0.7 : 1); if (G.state === 'playing') SFX.alert();
-        if (!G.hints.spotted) { G.hints.spotted = 1; hint('You have been spotted. Run for the water. Your bite is lethal there.', 6); }
-        killfeedRaw(`<span class="en">${this.name}</span><span class="w">SPOTTED YOU</span>`);
-        for (const o of farmers) if (o !== this && Math.hypot(o.x - this.x, o.z - this.z) < 34) o.hear(P.x, P.z, 0.85);
+        if (L.enemies.whistle) SFX.whistle(this); else SFX.shout(this, this.foreman ? 0.7 : 1); if (G.state === 'playing') SFX.alert();
+        if (!G.hints.spotted) { G.hints.spotted = 1; hint(L.spotHint || 'You have been spotted. Run for the water. Your bite is lethal there.', 6); }
+        killfeedRaw(`<span class="en">${this.name}</span><span class="w">${L.enemies.whistle ? 'BLEW THE WHISTLE' : 'SPOTTED YOU'}</span>`);
+        const call = L.enemies.whistle ? 50 : 34;
+        for (const o of farmers) if (o !== this && Math.hypot(o.x - this.x, o.z - this.z) < call) o.hear(P.x, P.z, 0.85);
       }
     }
     this.state = 'chase'; this.aware = 1.25; this.lost = 0; this.lk = { x: P.x, z: P.z };
@@ -1730,8 +2003,9 @@ class Farmer {
     if (P.alive && G.state === 'playing' && !G.killcam && !G.cine) {
       range = 30 * (P.sneak ? 0.55 : 1) * (P.camo > 0 ? 0.38 : 1);
       if (inField(P.x, P.z)) range *= 0.72; if (P.deep) range *= P.sneak ? 0.38 : 0.7;
-      if (L.sky.night) range *= (this.m.lantern && d < 12) ? 1 : 0.62;
+      if (L.sky.night) range *= ((this.m.lantern && d < 12) || P.lit) ? 1 : 0.62;
       if (this.state === 'chase') range = Math.max(range, 44);
+      if (P.indoor && indoorOf(this.x, this.z) !== P.indoor) range = Math.min(range, 6);
       const ang = Math.abs(angDiff(this.yaw, Math.atan2(dx, dz))), fov = this.state === 'chase' ? Math.PI : 1.15;
       if (d < range && (ang < fov || d < 3.5) && COL.los(this.x, this.z, P.x, P.z)) seen = true;
       if (!seen && !P.inWater && d < (P.sprinting ? 13 : 4.5) && this.state !== 'chase') this.aware += dt * 0.55 * D.detect;
@@ -1771,6 +2045,11 @@ class Farmer {
       if (this.atk <= 0) this.cool = this.T.cool * rand(0.85, 1.25);
     }
     if (this.cool > 0) this.cool -= dt;
+    if (this.T.ranged) {
+      this.netCool -= dt;
+      if (this.state === 'chase' && seen && d > 4.5 && d < 18 && this.netCool <= 0 && this.atk <= 0 && P.alive && !P.invuln && G.state === 'playing' && !G.killcam && !G.cine) { this.netCool = rand(4.5, 6.5); this.aimT = 0.45; fireNet(this); }
+      if (this.aimT > 0) { this.aimT -= dt; spd = 0; pose = 'alert'; }
+    }
     this.shoutT -= dt;
     if (spd > 0) {
       const r = stepAgent(this, tx, tz, spd, dt, this.r, this.state === 'chase' ? 7 : 3.5);
@@ -1819,10 +2098,93 @@ class Farmer {
   }
 }
 
+// ---------- villagers: harmless, but they scream for the police ----------
+class Civilian {
+  constructor(x, z, route) {
+    this.m = makeFarmer('none', { look: 'civ' }); this.tool = 'none'; this.T = { wind: 0.3 };
+    const used = new Set(civs.map(c => c.name)); this.name = CIV_NAMES.find(n => !used.has(n)) || pick(CIV_NAMES);
+    this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
+    this.state = 'walk'; this.aware = 0; this.walk = rand(0, 10); this.spd = 0; this.r = 0.38; this.removed = false; this.side = 0; this.sideT = 0;
+    this.pace = rand(1.1, 1.6); this.fleeT = 0; this.screamT = 0; this.prog = { x, z, t: 0 };
+    this.anim(0, 0, 'walk');
+  }
+  get active() { return this.state !== 'eaten' && !this.removed; }
+  remove() { this.removed = true; worldRoot.remove(this.m.g); }
+  panic() {
+    if (this.state === 'flee') { this.fleeT = 8; return; }
+    this.state = 'flee'; this.fleeT = 8; this.screamT = rand(1.5, 2.5); SFX.scream(this);
+    for (const f of farmers) if (f.active && Math.hypot(f.x - this.x, f.z - this.z) < 45) f.hear(P.x, P.z, 0.9);
+    killfeedRaw(`<span class="en">${this.name}</span><span class="w">SCREAMED FOR HELP</span>`);
+    if (!G.hints.civ) { G.hints.civ = 1; hint('A villager saw you and screamed for the police. Eat witnesses before they run, or stay out of sight.', 6); }
+  }
+  update(dt) {
+    if (this.removed) return;
+    if (this.state === 'eaten') { this.quickEat(dt); return; }
+    const dx = P.x - this.x, dz = P.z - this.z, d = Math.hypot(dx, dz);
+    let seen = false;
+    if (P.alive && G.state === 'playing' && !G.killcam && !G.cine && this.state !== 'flee') {
+      let range = 20 * (P.sneak ? 0.55 : 1) * (P.camo > 0 ? 0.4 : 1); if (P.deep) range *= 0.4; if (L.sky.night && !P.lit) range *= 0.6;
+      if (P.indoor && indoorOf(this.x, this.z) !== P.indoor) range = Math.min(range, 5);
+      const ang = Math.abs(angDiff(this.yaw, Math.atan2(dx, dz)));
+      if (d < range && (ang < 1.25 || d < 3) && COL.los(this.x, this.z, P.x, P.z)) seen = true;
+      if (seen) this.aware += dt * (0.7 + 2.2 * Math.max(0, 1 - d / range)) * DIFF[G.diff].detect; else this.aware = Math.max(0, this.aware - dt * 0.25);
+      if (this.aware >= 0.7) this.panic();
+    }
+    this.seen = seen;
+    let tx, tz, spd;
+    if (this.state === 'flee') {
+      this.fleeT -= dt; this.screamT -= dt; if (this.screamT <= 0 && d < 30) { SFX.scream(this, 0.6); this.screamT = rand(2, 3.5); }
+      const k = 8 / (d || 1); tx = this.x - dx * k; tz = this.z - dz * k; spd = 5.2;
+      if (this.fleeT <= 0 && d > 22) { this.state = 'walk'; this.aware = 0; this.wp = nearestWp(this); }
+    } else {
+      const w = this.route[this.wp]; tx = w.x; tz = w.z; spd = this.pace; if (Math.hypot(tx - this.x, tz - this.z) < 1.8) this.wp = (this.wp + 1) % this.route.length;
+      if (this.aware > 0.25) { spd = 0; this.yaw += clamp(angDiff(this.yaw, Math.atan2(dx, dz)), -3 * dt, 3 * dt); }
+    }
+    if (spd > 0) {
+      const r = stepAgent(this, tx, tz, spd, dt, this.r, this.state === 'flee' ? 7 : 3, 0.4); this.spd = Math.max(0, r);
+      this.prog.t += dt;
+      if (this.prog.t > 1.1) { if (Math.hypot(this.x - this.prog.x, this.z - this.prog.z) < 0.5) { if (this.state === 'flee') { this.side = Math.random() < 0.5 ? -1 : 1; this.sideT = 1.3; } else this.wp = (this.wp + 1) % this.route.length; } this.prog = { x: this.x, z: this.z, t: 0 }; }
+    } else this.spd = 0;
+    if (this.sideT > 0) { this.sideT -= dt; if (this.sideT <= 0) this.side = 0; }
+    this.anim(dt, this.spd, this.state === 'flee' && this.spd < 1 ? 'cower' : 'walk');
+  }
+}
+Civilian.prototype.anim = Farmer.prototype.anim; Civilian.prototype.quickEat = Farmer.prototype.quickEat;
+function spawnCiv(route) { const [r, p] = route ? [route, route[randi(0, route.length - 1)]] : farRoutePoint(40); const c = new Civilian(p.x + rand(-2, 2), p.z + rand(-2, 2), r); civs.push(c); return c; }
+function eatCiv(c) {
+  c.state = 'eaten'; c.eatT = 0; P.hp = Math.min(100, P.hp + 30); G.score += 60; G.stats.civs++; hitmark(true);
+  SFX.crunch(c); SFX.gulp(); xp('+60', 'SNACK'); killfeedRaw(`<span class="you">HIPPO</span><span class="w">SNACKED ON</span><span class="en">${c.name}</span>`);
+  if (groundH(c.x, c.z) < 0.1) splash(c.x, c.z, 20, 0.8); else dust(c.x, groundH(c.x, c.z) + 0.2, c.z, 10);
+  for (const o of civs) if (o !== c && o.active && Math.hypot(o.x - c.x, o.z - c.z) < 16 && COL.los(o.x, o.z, c.x, c.z)) o.panic();
+  G.heat++;
+  if (G.heat % 3 === 0) { spawnFarmer({ alert: true }); notify('A witness called the police', 'Another constable is on the way', 'red'); }
+  if (!G.hints.snack) { G.hints.snack = 1; hint('Villagers restore health, but every few you eat brings another constable.', 6); }
+}
+// ---------- net gun ----------
+const netGeo = new THREE.IcosahedronGeometry(1, 1); netGeo.userData.keep = true;
+const netMat = new THREE.MeshBasicMaterial({ color: 0xd8d0b0, wireframe: true, transparent: true, opacity: 0.85 });
+function fireNet(f) {
+  const tx = P.x + P.vx * 0.35, tz = P.z + P.vz * 0.35, dx = tx - f.x, dz = tz - f.z, d = Math.hypot(dx, dz) || 1, sp = 19, y = groundH(f.x, f.z) + 1.4;
+  const m = new THREE.Mesh(netGeo, netMat); m.position.set(f.x, y, f.z); worldRoot.add(m);
+  nets.push({ x: f.x, y, z: f.z, vx: dx / d * sp, vz: dz / d * sp, vy: 1.4, t: 0, m, src: f }); f.yaw = Math.atan2(dx, dz); SFX.netgun(f);
+}
+function updateNets(dt) {
+  for (const n of nets) {
+    n.t += dt; n.vy -= 4 * dt; const px = n.x, pz = n.z; n.x += n.vx * dt; n.z += n.vz * dt; n.y += n.vy * dt;
+    const s = 0.3 + Math.min(1, n.t * 3) * 0.9; n.m.scale.set(s, s * 0.45, s); n.m.rotation.y += dt * 6; n.m.position.set(n.x, n.y, n.z);
+    if (P.alive && !P.invuln && Math.hypot(n.x - P.x, n.z - P.z) < 1.8) {
+      n.dead = true; P.netT = 2.6; damagePlayer(n.src.T.dmg * DIFF[G.diff].dmg, n.src, 0); SFX.netHit();
+      if (!G.hints.net) { G.hints.net = 1; hint(`Tangled in a net. Mash ${kn('bite')} to tear free.`, 5); }
+    } else if (n.t > 1.4 || n.y < groundH(n.x, n.z) || !COL.los(px, pz, n.x, n.z)) n.dead = true;
+    if (n.dead) worldRoot.remove(n.m);
+  }
+  nets = nets.filter(n => !n.dead);
+}
+
 // ---------- dogs ----------
 class Dog {
   constructor(x, z, route) {
-    this.m = makeDog(); this.name = pick(DOG_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
+    this.m = makeDog(); this.name = pick(L.enemies.dogNames || DOG_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
     this.state = 'roam'; this.aware = 0; this.walk = 0; this.spd = 0; this.cool = 0; this.barkT = 0; this.fleeT = 0; this.bites = 0; this.r = 0.35; this.removed = false; this.side = 0; this.sideT = 0;
   }
   get active() { return !this.removed && this.state !== 'gone'; }
@@ -1841,7 +2203,7 @@ class Dog {
     else if (this.state === 'flee') { this.fleeT -= dt; tx = this.x - dx; tz = this.z - dz; spd = 9; if (this.fleeT <= 0) { this.state = 'roam'; this.wp = nearestWp(this); } }
     else {
       if (P.alive && G.state === 'playing' && !G.cine && !G.killcam) {
-        let range = 20 * (P.camo > 0 ? 0.45 : 1) * (P.sneak ? 0.75 : 1); if (P.deep) range *= 0.3;
+        let range = 20 * (P.camo > 0 ? 0.45 : 1) * (P.sneak ? 0.75 : 1); if (P.deep) range *= 0.3; if (P.indoor) range *= 0.5;
         if (d < range) this.aware = Math.min(1.2, this.aware + dt * (0.6 + 2 * (1 - d / range)) * D.detect); else this.aware = Math.max(0, this.aware - dt * 0.2);
       }
       if (this.state === 'roam' && this.aware >= 1) { this.state = 'chase'; this.bark(); G.stats.spotted++; }
@@ -1956,20 +2318,22 @@ function farRoutePoint(minD = 45) {
   return pts.length ? pick(pts) : [ROUTES[0], ROUTES[0][0]];
 }
 function spawnFarmer(opt = {}) {
-  const [r, p] = opt.route ? [opt.route, opt.route[randi(0, opt.route.length - 1)]] : farRoutePoint();
-  const used = new Set(farmers.map(f => f.name)); const name = FARMER_NAMES.find(n => !used.has(n)) || pick(FARMER_NAMES);
+  let [r, p] = opt.route ? [opt.route, opt.route[randi(0, opt.route.length - 1)]] : farRoutePoint();
+  if (opt.route && L.town) { const s = waterPoint(L.start), far = r.filter(q => Math.hypot(q.x - s.x, q.z - s.z) > 40); if (far.length) p = pick(far); }
+  const NAMES = L.enemies.names || FARMER_NAMES, used = new Set(farmers.map(f => f.name)), pre = opt.rank ? opt.rank + ' ' : '';
+  const name = pre + (NAMES.find(n => !used.has(pre + n)) || pick(NAMES));
   const f = new Farmer(p.x + rand(-1, 1), p.z + rand(-1, 1), r, Object.assign({ name }, opt)); farmers.push(f); return f;
 }
 function spawnDog(opt = {}) { const [r, p] = opt.route ? [opt.route, opt.route[0]] : farRoutePoint(30); const d = new Dog(p.x, p.z, r); dogs.push(d); return d; }
 function spawnBunch() {
   const free = TREES.filter(t => !t.bunch && (!P.alive || Math.hypot(t.x - P.x, t.z - P.z) > 10)); if (!free.length) return;
-  const t = pick(free), a = rand(0, TAU), m = new THREE.Mesh(bunchGeo, bunchMat);
-  const b = { tree: t, m, x: t.tx + Math.cos(a) * 0.42, z: t.tz + Math.sin(a) * 0.42, y: t.top - 0.85, ph: rand(0, 6) };
+  const meat = L.food === 'meat', t = pick(free), a = rand(0, TAU), m = new THREE.Mesh(meat ? meatGeo : bunchGeo, meat ? meatMat : bunchMat), o = meat ? 0 : 0.42;
+  const b = { tree: t, m, x: t.tx + Math.cos(a) * o, z: t.tz + Math.sin(a) * o, y: t.top - 0.85, ph: rand(0, 6) };
   m.position.set(b.x, b.y, b.z); m.rotation.set(0.15, rand(0, TAU), 0); m.castShadow = true; worldRoot.add(m); t.bunch = b; bunches.push(b);
 }
 const PU_GEO = {
   golden: new THREE.TorusGeometry(0.45, 0.13, 10, 20, 2.2), melon: new THREE.SphereGeometry(0.45, 16, 12), pepper: new THREE.ConeGeometry(0.2, 0.8, 10), camo: new THREE.CylinderGeometry(0.3, 0.36, 0.6, 12),
-  hide: new THREE.CylinderGeometry(0.5, 0.5, 0.12, 6), parrot: new THREE.SphereGeometry(0.28, 12, 10), frenzy: new THREE.ConeGeometry(0.22, 0.75, 8)
+  hide: new THREE.CylinderGeometry(0.5, 0.5, 0.12, 6), parrot: new THREE.SphereGeometry(0.28, 12, 10), frenzy: new THREE.ConeGeometry(0.22, 0.75, 8), roast: new THREE.SphereGeometry(0.42, 14, 10)
 };
 Object.values(PU_GEO).forEach(g => g.userData.keep = true);
 const beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 14, 16, 1, true); beamGeo.translate(0, 7, 0); beamGeo.userData.keep = true;
@@ -1984,6 +2348,7 @@ function makePickup(type, x, z) {
   if (type === 'pepper') { core.rotation.x = Math.PI; mk(GEO.cyl8, mat(0x3a7a2a), 0, 0.48, 0, 0.04, 0.2, 0.04, holder); }
   if (type === 'parrot') { mk(GEO.cone, mat(0xffd23a), 0, 0.02, 0.3, 0.08, 0.2, 0.08, holder).rotation.x = Math.PI / 2; mk(GEO.cone, em, 0, -0.1, -0.4, 0.12, 0.5, 0.06, holder).rotation.x = -Math.PI / 2 - 0.4; }
   if (type === 'hide') core.rotation.x = Math.PI / 2;
+  if (type === 'roast') { core.scale.set(1, 0.8, 1.3); mk(GEO.cyl8, mat(0xeee4cc), 0, 0, 0.62, 0.07, 0.4, 0.07, holder).rotation.x = Math.PI / 2; }
   const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: pw.color, transparent: true, opacity: 0.85 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; g.add(ring);
   const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: pw.color, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(beam);
   worldRoot.add(g);
@@ -2003,7 +2368,7 @@ function powerSpots() {
 }
 
 // ---------- level lifecycle ----------
-function newStats() { return { eaten: 0, ko: 0, dogs: 0, bananas: 0, fed: 0, spotted: 0, time: 0, power: 0, dmg: 0 }; }
+function newStats() { return { eaten: 0, ko: 0, dogs: 0, bananas: 0, fed: 0, spotted: 0, time: 0, power: 0, dmg: 0, civs: 0 }; }
 function cleanupCine() {
   G.killcam = null; G.cine = null; HIPPO.g.visible = false; HIPPO.body.rotation.set(0, 0, 0); HIPPO.body.position.y = 0; HIPPO.headPivot.rotation.set(0, 0, 0); HIPPO.head.setOpen(0);
   while (HIPPO.mouthHold.children.length) HIPPO.mouthHold.remove(HIPPO.mouthHold.children[0]);
@@ -2016,20 +2381,23 @@ function loadLevel(i) {
   const night = !!L.sky.night; vmHemi.intensity = night ? 0.42 : 0.55; vmHemi.color.set(night ? 0x9fb4d8 : 0xfff4e6); vmSun.intensity = night ? 0.32 : 0.55; vmSun.color.set(night ? 0xa8c0ff : 0xffe2b8);
   rig = makeRig(L.captive); leo = initLeopard();
   exfil = waterPoint(L.exfil); exfil.y = groundH(exfil.x, exfil.z);
-  farmers = []; dogs = []; bunches = []; pickups = []; hats = [];
+  farmers = []; dogs = []; civs = []; nets = []; bunches = []; pickups = []; hats = [];
+  const meat = L.food === 'meat'; VM.bunch.geometry = meat ? meatGeo : bunchGeo; VM.bunch.material = meat ? meatMat : bunchMat;
   ROUTES = buildRoutes();
   P.alive = false; P.x = L.captive.x + 30; P.z = L.captive.z + 30;
   const n = Math.max(3, L.enemies.farmers + DIFF[G.diff].extra);
   for (let k = 0; k < n; k++) { const r = ROUTES[k % ROUTES.length]; spawnFarmer({ route: r }); }
   for (let k = 0; k < L.enemies.dogs; k++) spawnDog({ route: ROUTES[(k * 3 + 1) % ROUTES.length] });
+  for (let k = 0; k < (L.civilians || 0); k++) spawnCiv(ROUTES[(k * 5 + 2) % ROUTES.length]);
   for (let k = 0; k < 24; k++) spawnBunch();
   const types = L.power; powerSpots().forEach((p, k) => pickups.push(makePickup(types[k % types.length], p.x, p.z)));
   G.strength = 0; G.phase = 'gather'; G.waveIdx = 0; G.score = 0; G.stats = newStats(); G.spawnT = 25; G.bunchT = 4; G.killcam = null; G.cine = null; G.dmgArcs = []; G.hints = {};
+  G.clock = L.depart ? L.depart * DIFF[G.diff].time : 0; G.clockWarn = 0; G.failReason = ''; G.heat = 0; G.civT = 20;
   buildMinimap(); initRain();
 }
 function resetPlayer() {
   const s = waterPoint(L.start);
-  Object.assign(P, { x: s.x, z: s.z, vx: 0, vz: 0, hp: 100, armor: 0, stamina: 100, winded: false, fovK: 0, carry: 0, cap: L.cap, alive: true, biteCool: 0, jawT: 1, bellowCool: 0, camo: 0, pepper: 0, frenzy: 0, recon: 0, lastHit: 99, sneak: false, sprinting: false, lunge: 0, stepPh: 0, feedT: 0, invuln: 0, bob: 0, swayX: 0, swayY: 0, pitch: -0.05, inWater: false, deep: false, zone: false, hitTilt: 0 });
+  Object.assign(P, { x: s.x, z: s.z, vx: 0, vz: 0, hp: 100, armor: 0, stamina: 100, winded: false, fovK: 0, carry: 0, cap: L.cap, alive: true, biteCool: 0, jawT: 1, bellowCool: 0, camo: 0, pepper: 0, frenzy: 0, recon: 0, lastHit: 99, netT: 0, indoor: null, lit: false, sneak: false, sprinting: false, lunge: 0, stepPh: 0, feedT: 0, invuln: 0, bob: 0, swayX: 0, swayY: 0, pitch: -0.05, inWater: false, deep: false, zone: false, hitTilt: 0 });
   P.yaw = Math.atan2(-(L.captive.x - P.x), -(L.captive.z - P.z));
   P.y = groundH(P.x, P.z) + 1.55;
 }
@@ -2040,7 +2408,7 @@ function startMission(i) {
   $('hud').classList.remove('off');
   hudReset(); const run = G.runId; insertion(L.insertion, run); lbStartRun();
   setTimeout(() => { if (G.state === 'playing' && G.runId === run) { notify('Free the leopard', L.captiveLine); } }, 4200);
-  setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(`Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
+  setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(L.food === 'meat' ? `Walk into the hams hanging on the market stalls to grab them. Carry them to the leopard on the train and hold ${kn('feed')} to feed him. Watch the departure clock.` : `Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
 }
 
 // ---------- player ----------
@@ -2067,14 +2435,16 @@ function poseHippo(x, z, yaw, open) {
 }
 function bite() {
   P.biteCool = 0.5; P.jawT = 0;
+  if (P.netT > 0) { P.netT -= 0.7; P.biteCool = 0.16; SFX.rip(); if (P.netT <= 0) { P.netT = 0; sparkle(P.x, P.y - 0.4, P.z, 0xd8d0b0, 12); } return; }
   const lethal = P.zone || P.frenzy > 0, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
   let reach = lethal ? 3.4 : 2.7;
   if (lethal && P.inWater) { P.lunge = 0.22; P.lungeDir = { x: fx, z: fz }; reach += 1.6; splash(P.x + fx * 1.5, P.z + fz * 1.5, 12, 0.7); SFX.splash({ x: P.x, z: P.z }, 0.25); }
   let best = null, bd = 1e9;
   const test = (e, r) => { const dx = e.x - P.x, dz = e.z - P.z, d = Math.hypot(dx, dz); if (d > reach + r) return; const a = Math.abs(angDiff(Math.atan2(dx, dz), Math.atan2(fx, fz))); if (a > 0.8 && d > 1.8) return; if (d < bd) { bd = d; best = e; } };
-  farmers.forEach(f => { if (f.active) test(f, f.r); }); dogs.forEach(d => { if (d.active && d.state !== 'flee') test(d, 0.4); });
+  farmers.forEach(f => { if (f.active) test(f, f.r); }); dogs.forEach(d => { if (d.active && d.state !== 'flee') test(d, 0.4); }); civs.forEach(c => { if (c.active) test(c, c.r); });
   if (!best) { SFX.whiff(); SFX.chomp(); return; }
   SFX.chomp(best);
+  if (best instanceof Civilian) { eatCiv(best); return; }
   if (best instanceof Dog) { best.bitten(); hitmark(false); return; }
   if (lethal) { eat(best); return; }
   best.hp -= 34; best.stun = 1.1; const d = Math.hypot(best.x - P.x, best.z - P.z) || 1; best.kx = (best.x - P.x) / d * 7; best.kz = (best.z - P.z) / d * 7; best.atk = 0;
@@ -2096,6 +2466,7 @@ function bellow() {
   P.bellowCool = 10; SFX.bellow(); G.shake = Math.min(1, G.shake + 0.3); let n = 0;
   for (const f of farmers) if (f.active && Math.hypot(f.x - P.x, f.z - P.z) < 45) { f.hear(P.x, P.z, 0.75); n++; }
   for (const d of dogs) if (d.active && d.state === 'roam' && Math.hypot(d.x - P.x, d.z - P.z) < 40) d.aware = Math.max(d.aware, 0.8);
+  for (const c of civs) if (c.active && Math.hypot(c.x - P.x, c.z - P.z) < 30) c.panic();
   G.bellowRing = 1;
   if (n) xp('', `${n} LURED`);
   if (P.inWater) splash(P.x, P.z, 10, 0.5);
@@ -2106,19 +2477,20 @@ function feedOne() {
   SFX.feed(leo); G.score += 40; xp('+40', 'FED');
   sparkle(leo.x, (rig.leoBase.y || 0) + 1.4, leo.z, 0xffd23f, 8);
   for (const w of L.waves.slice(G.waveIdx)) { if (before < w.at && G.strength >= w.at) { G.waveIdx++; doWave(w); } }
-  for (const th of [25, 50, 75]) if (before < th && G.strength >= th) { notify(`Leopard strength ${th}%`, th === 75 ? 'He is almost ready to break free' : 'Keep the bananas coming'); SFX.growl(leo); leo.roar = 0.6; }
+  for (const th of [25, 50, 75]) if (before < th && G.strength >= th) { notify(`Leopard strength ${th}%`, th === 75 ? 'He is almost ready to break free' : `Keep the ${food().many} coming`); SFX.growl(leo); leo.roar = 0.6; }
   if (G.strength >= 100 && leo.state === 'captive' && !G.killcam && !G.cine) startBreak();
 }
 function doWave(w) {
-  for (let k = 0; k < (w.f || 0); k++) spawnFarmer({ alert: true });
+  for (let k = 0; k < (w.f || 0); k++) spawnFarmer({ alert: true, tool: w.tool, look: w.look, rank: w.rank });
   for (let k = 0; k < (w.d || 0); k++) spawnDog();
   if (w.foreman) { const f = spawnFarmer({ tool: 'chainsaw', foreman: true, alert: true, name: 'Foreman Boyd' }); notify('The foreman is here', 'Chainsaw. Do not fight him on land'); SFX.sting(); return; }
-  notify('Reinforcements inbound', `${(w.f || 0) + (w.d || 0)} more hostiles from the farmhouse`, 'red'); SFX.sting();
+  if (w.boss) { spawnFarmer({ tool: w.boss.tool, look: w.boss.look, foreman: true, alert: true, name: w.boss.name }); notify(w.boss.title, w.boss.sub); SFX.sting(); return; }
+  notify(w.title || 'Reinforcements inbound', w.note || `${(w.f || 0) + (w.d || 0)} more hostiles ${L.waveFrom || 'from the farmhouse'}`, 'red'); SFX.sting();
 }
 function applyPower(pk) {
   const pw = POWER[pk.type]; SFX.power(); G.stats.power++; sparkle(pk.x, groundH(pk.x, pk.z) + 1.3, pk.z, pw.color, 22);
   switch (pk.type) {
-    case 'golden': P.carry = Math.min(P.cap + 3, P.carry + 3); break;
+    case 'golden': case 'roast': P.carry = Math.min(P.cap + 3, P.carry + 3); break;
     case 'melon': P.hp = 100; break;
     case 'pepper': P.pepper = POWER.pepper.dur; P.stamina = 100; break;
     case 'camo': P.camo = POWER.camo.dur; break;
@@ -2138,13 +2510,17 @@ function updatePlayer(dt) {
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = -fz, rz = fx;
   const gh = groundH(P.x, P.z); P.inWater = gh < -0.2; P.deep = gh < -1.1; P.zone = waterDist(P.x, P.z) < ZONE_D;
+  P.indoor = HOUSES.length ? indoorOf(P.x, P.z) : null; P.lit = !!(L.town && L.sky.night && LAMPS.some(l => (l.x - P.x) ** 2 + (l.z - P.z) ** 2 < 42));
+  if (P.indoor && !G.hints.indoor) { G.hints.indoor = 1; hint('Inside a house the walls hide you, and you heal faster. Wait for the police to lose your trail.', 7); }
+  if (P.lit && !G.hints.lit) { G.hints.lit = 1; hint('Street lamps light you up. Keep to the shadows between them.', 5); }
   let base = P.sneak ? 3.4 : 6.2; if (P.deep) base = P.sneak ? 5.0 : 8.4; else if (P.inWater) base = 6.8;
+  if (P.netT > 0) { P.netT = Math.max(0, P.netT - dt); base *= 0.3; }
   const moving = il > 0.1;
   // burst sprint: a short charge that drains fast and recharges after a brief rest; fully draining it leaves you winded until 35%
   const wasSprint = P.sprinting; P.sprinting = false;
   if (P.winded && P.stamina >= 35) P.winded = false;
   if (act('burst') && P.sneak && moving && iz > 0 && !P.winded) P.sneak = false;
-  if (act('burst') && moving && iz > 0 && !P.sneak && !P.winded && (P.stamina > 0 || P.pepper > 0)) {
+  if (act('burst') && moving && iz > 0 && !P.sneak && !P.winded && !(P.netT > 0) && (P.stamina > 0 || P.pepper > 0)) {
     base *= P.deep ? 1.45 : 2.05; P.sprinting = true; P.stamT = 0;
     if (!P.pepper) { P.stamina = Math.max(0, P.stamina - 30 * dt); if (P.stamina <= 0) { P.winded = true; SFX.winded && SFX.winded(); } }
     if (!wasSprint) { SFX.burst && SFX.burst(); G.shake = Math.max(G.shake, 0.25); }
@@ -2155,7 +2531,7 @@ function updatePlayer(dt) {
   let mx = P.vx, mz = P.vz; if (P.lunge > 0) { P.lunge -= dt; mx += P.lungeDir.x * 14; mz += P.lungeDir.z * 14; }
   P.x += mx * dt; P.z += mz * dt; COL.resolve(P, 0.95);
   const spd = Math.hypot(P.vx, P.vz);
-  if (P.lastHit > 4 && P.hp < 100) P.hp = Math.min(100, P.hp + D.regen * dt);
+  if (P.lastHit > 4 && P.hp < 100) P.hp = Math.min(100, P.hp + D.regen * dt * (P.indoor ? 2 : 1));
   // eye height
   let eye = gh + 1.55; if (P.inWater) eye = Math.max(gh + 1.55, (P.sneak && P.deep ? 0.2 : 0.46) + Math.sin(G.rt * 1.7) * 0.04);
   P.y = lerp(P.y, eye, 1 - Math.exp(-9 * dt));
@@ -2172,8 +2548,8 @@ function updatePlayer(dt) {
   if (P.canFeed && act('feed') && P.carry > 0) { P.feedT += dt; if (P.feedT >= 0.36) { P.feedT = 0; feedOne(); } } else P.feedT = 0;
   // pickups
   if (P.carry < P.cap) for (const b of bunches) if (b.m.parent && Math.hypot(b.x - P.x, b.z - P.z) < 2.4) {
-    worldRoot.remove(b.m); b.tree.bunch = null; b.dead = true; P.carry++; G.stats.bananas++; SFX.pickup(); sparkle(b.x, b.y, b.z); xp('+10', 'BANANA'); G.score += 10;
-    if (P.carry >= P.cap) { hint(`Mouth full. Take the bananas to the leopard.`, 4); }
+    worldRoot.remove(b.m); b.tree.bunch = null; b.dead = true; P.carry++; G.stats.bananas++; SFX.pickup(); sparkle(b.x, b.y, b.z); xp('+10', food().xp); G.score += 10;
+    if (P.carry >= P.cap) { hint(`Mouth full. Take the ${food().many} to the leopard.`, 4); }
     else if (!G.hints.first) { G.hints.first = 1; hint('Follow the diamond marker to the leopard.', 5); }
     if (P.carry >= P.cap) break;
   }
@@ -2243,7 +2619,7 @@ function snapFree() {
     SFX.snap(leo);
     rig.links.forEach(l => { PT.spawn({ x: l.position.x, y: l.position.y, z: l.position.z, vx: rand(-5, 5), vy: rand(3, 8), vz: rand(-5, 5), s: 0.09, c: 0x8e9398, life: 1.6, g: -14 }); l.visible = false; });
     leo.m.ring.visible = false;
-  } else if (rig.type === 'truck') {
+  } else if (rig.type === 'truck' || rig.type === 'train') {
     SFX.metal(leo); SFX.crash(leo);
     rig.bars.forEach(b => { if (b.userData.side) { b.rotation.z = -b.userData.side * rand(0.2, 0.45); b.rotation.x = rand(-0.2, 0.2); } });
     c.door = { v: new THREE.Vector3(-4, 5, 7), spin: 6 };
@@ -2288,6 +2664,14 @@ function updateCine(rdt) {
     }
     return;
   }
+  if (c.type === 'depart') {
+    const x = 0.45 * t * t; rig.g.position.x = x;
+    if (Math.random() < 0.7) PT.spawn({ x: rig.stack.x + x + rand(-0.3, 0.3), y: rig.stack.y, z: rig.stack.z + rand(-0.3, 0.3), vx: rand(-0.5, 0.5) - Math.min(4, t), vy: rand(2.5, 4), vz: rand(-0.5, 0.5), s: rand(0.6, 1.1), c: pick([0xb8b8c0, 0x9a9aa4, 0xd0d0d8]), life: rand(2.5, 3.5), g: 0.2, grow: 4, drag: 0.3, op: 0.5 });
+    camera.position.set(rig.x - 4, rig.y + 3.2, rig.z + 15); camera.lookAt(rig.x + x * 0.7, rig.y + 2, rig.z);
+    if (t > 2.2 && !c.w2) { c.w2 = 1; SFX.trainWhistle(); }
+    if (t > 5.5 && !c.done) { c.done = true; endMission(false); }
+    return;
+  }
   if (c.type === 'win') {
     const hb = HIPPO, sp = 2.2 * t; const dir = c.dir;
     const hx = c.x + dir.x * sp, hz = c.z + dir.z * sp;
@@ -2312,6 +2696,11 @@ function updateCine(rdt) {
     if (t > 3.6 && !c.done) { c.done = true; endMission(false); }
   }
 }
+function startDepart() {
+  P.alive = false; P.invuln = 99; G.phase = 'done'; G.failReason = 'The circus train pulled out of Millbrook Junction with the leopard still in his cage.';
+  G.cine = { type: 'depart', t: 0, slow: 1 }; SFX.trainWhistle(); notify('The train is leaving', 'The leopard is still on board', 'red');
+  $('lb-top').classList.add('on'); $('lb-bot').classList.add('on'); $('hud').classList.add('off');
+}
 function startWin() {
   P.invuln = 99; G.phase = 'done'; SFX.win();
   const w = L.water[L.exfil.river !== undefined ? L.exfil.river : L.exfil.pond]; let dir;
@@ -2332,8 +2721,8 @@ function endMission(win) {
   }
   $('end-eye').textContent = `${L.op} · ${L.place}`;
   const h = $('end-title'); h.textContent = win ? 'Mission complete' : 'Mission failed'; h.className = win ? 'win' : 'fail';
-  $('end-quote').textContent = win ? (G.li < LEVELS.length - 1 ? 'The leopard is free and the river carried you both out of the valley. Command has another job for you.' : 'Three captives freed, one valley in uproar, and not one farmer willing to go near the water again.') : `"${pick(DEATH_QUOTES)}"`;
-  $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, 'FARMERS EATEN'], [st.fed, 'BANANAS FED'], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+  $('end-quote').textContent = win ? (G.li < LEVELS.length - 1 ? 'The leopard is free and the river carried you both out of the valley. Command has another job for you.' : 'The circus train left without its star. The leopard is free for good, and nobody in Millbrook Junction will go near the river again.') : G.failReason || `"${pick(L.quotes || DEATH_QUOTES)}"`;
+  $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, L.town ? 'OFFICERS EATEN' : 'FARMERS EATEN'], [st.fed, food().fed], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], L.civilians ? [st.civs, 'VILLAGERS EATEN'] : [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('b-next').hidden = !(win && G.li < LEVELS.length - 1);
   $('b-retry').textContent = win ? 'Replay' : 'Retry';
   lbEnd(win); $('end').hidden = false; refreshMissionList();
@@ -2536,15 +2925,17 @@ function hudReset() { for (const k in HUDC) delete HUDC[k]; $('killfeed').innerH
 function updateHUD() {
   setText('score', String(G.score));
   const full = P.carry >= P.cap; setHTML('bcnt', `${P.carry}<small> / ${P.cap}</small>`); $('bcnt').classList.toggle('full', full);
-  setText('o1s', P.carry ? `${P.carry} carried${full ? ' · mouth full' : ''}` : `${bunches.length} bunches on the trees`);
+  setText('o1t', food().gather); setText('blbl', food().label);
+  setText('o1s', P.carry ? `${P.carry} carried${full ? ' · mouth full' : ''}` : `${bunches.length} ${food().where}`);
   $('strbar').style.width = G.strength + '%';
-  setText('o2s', `Strength ${Math.round(G.strength)}% · ${Math.max(0, Math.ceil((100 - G.strength) / (100 / L.need) - 1e-6))} more bananas`);
+  setText('o2s', `Strength ${Math.round(G.strength)}% · ${Math.max(0, Math.ceil((100 - G.strength) / (100 / L.need) - 1e-6))} more ${food().many}`);
   const freed = G.phase !== 'gather';
   $('o1').className = 'orow ' + (freed ? 'done' : 'active'); $('o2').className = 'orow ' + (freed ? 'done' : 'active'); $('o3').className = 'orow ' + (G.phase === 'done' ? 'done' : freed ? 'active' : '');
   setText('o3s', freed ? `${Math.round(Math.hypot(exfil.x - P.x, exfil.z - P.z))}m · green smoke` : 'Locked until the leopard is free');
   setText('o2t', freed ? 'Leopard freed' : rig.type === 'hang' ? 'Toss bananas to the leopard' : 'Feed the leopard');
-  const st = !P.alive ? 'DOWN' : P.deep ? (P.sneak ? 'SUBMERGED' : 'SWIMMING') : P.inWater ? 'WADING' : P.sneak ? 'SNEAKING' : P.sprinting ? 'BURST' : P.winded ? 'WINDED' : 'STANDING';
-  setText('stance', st + (P.camo > 0 ? ' · CAMO' : ''));
+  if (L.depart) { const urgent = G.phase === 'gather' && G.clock < 60, m = Math.max(0, Math.ceil(G.clock)); setText('mission', G.phase === 'gather' ? `${L.op} · TRAIN DEPARTS ${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}` : `${L.op} · ${L.clock}`); $('mission').classList.toggle('urgent', urgent); $('mission').classList.add('clock'); } else $('mission').classList.remove('clock', 'urgent');
+  const st = !P.alive ? 'DOWN' : P.netT > 0 ? 'NETTED' : P.deep ? (P.sneak ? 'SUBMERGED' : 'SWIMMING') : P.inWater ? 'WADING' : P.sneak ? 'SNEAKING' : P.sprinting ? 'BURST' : P.winded ? 'WINDED' : 'STANDING';
+  setText('stance', st + (P.camo > 0 ? ' · CAMO' : '') + (P.indoor && !farmers.some(f => f.active && f.seen) ? ' · HIDDEN' : '') + (P.lit ? ' · LIT' : ''));
   $('hpb').querySelector('i').style.width = Math.max(0, P.hp) + '%'; $('arb').querySelector('i').style.width = P.armor + '%'; $('arb').style.display = P.armor > 0 ? '' : 'none';
   $('stb').querySelector('i').style.width = P.stamina + '%'; $('stb').querySelector('i').style.background = P.pepper > 0 ? '#ff6a4e' : P.winded ? '#c8503a' : P.sprinting ? '#f2d16b' : ''; $('stb').classList.toggle('winded', !!P.winded);
   const eq = [`<div class="eq"><span class="k">${kn('bellow')}</span>BELLOW${P.bellowCool > 0 ? ` ${Math.ceil(P.bellowCool)}` : ''}<i class="cd" style="width:${(1 - P.bellowCool / 10) * 100}%"></i></div>`];
@@ -2553,7 +2944,7 @@ function updateHUD() {
   const zone = (P.zone || P.frenzy > 0) && P.alive; $('zone').style.display = zone ? 'block' : 'none'; $('zone').classList.toggle('frenzy', !P.zone && P.frenzy > 0);
   if (!P.zone && P.frenzy > 0) setText('zone', 'FEEDING FRENZY · BITES ARE LETHAL'); else if (P.zone) setText('zone', L.water.some(w => w.type === 'river') && waterDistType() === 'river' ? 'RIVER ADVANTAGE · BITES ARE LETHAL' : 'WATER ADVANTAGE · BITES ARE LETHAL');
   let pr = '';
-  if (P.canFeed && leo.state === 'captive') pr = P.carry > 0 ? `Hold <span class="key">${kn('feed')}</span> to ${rig.type === 'hang' ? 'toss' : 'feed'} bananas` : 'Leopard is hungry. Find bananas';
+  if (P.canFeed && leo.state === 'captive') pr = P.carry > 0 ? `Hold <span class="key">${kn('feed')}</span> to ${rig.type === 'hang' ? 'toss' : 'feed'} ${food().many}` : `Leopard is hungry. Find ${food().many}`;
   setHTML('prompt', pr); $('prompt').style.display = pr ? 'block' : 'none';
   const tint = $('fx-tint');
   if (P.camo > 0) { tint.style.background = 'radial-gradient(ellipse at center,transparent 50%,rgba(70,52,30,.55))'; tint.style.opacity = 1; }
@@ -2574,6 +2965,7 @@ function drawMap(ctx, size, opts = {}) {
     if (h < -0.2) c = h < -1.1 ? '#1f5d74' : '#2e7489';
     else if (wd < ZONE_D) c = '#3c5b4c';
     else if (inField(cx, cz)) c = ((Math.floor(cx / 6.2) + Math.floor(cz / 6.2)) & 1) ? '#405a2a' : '#3a5326';
+    else if (onStreet(cx, cz)) c = '#5e5c55';
     else c = '#4a5536';
     ctx.fillStyle = c; ctx.fillRect((x + WORLD) * k, (z + WORLD) * k, step * k + 0.6, step * k + 0.6);
   }
@@ -2588,7 +2980,7 @@ function drawMap(ctx, size, opts = {}) {
     ctx.strokeStyle = '#93e06c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(exfil.x), px(exfil.z), size / 40, 0, TAU); ctx.stroke(); ctx.fillStyle = '#93e06c'; ctx.fillText('EXFIL', px(exfil.x), px(exfil.z) - size / 28);
     ctx.fillStyle = '#8fd4ff'; ctx.beginPath(); ctx.arc(px(st.x), px(st.z), size / 70, 0, TAU); ctx.fill(); ctx.fillText('INSERTION', px(st.x), px(st.z) + size / 22);
     ctx.fillStyle = 'rgba(232,235,226,.75)'; ctx.font = `600 ${Math.round(size / 44)}px ${FONT}`;
-    for (const p of L.props) if (['farmhouse', 'barn', 'packing', 'sawmill', 'silo', 'watertower'].includes(p.t)) ctx.fillText(p.t === 'packing' ? 'PACKING HOUSE' : p.t.toUpperCase(), px(p.x), px(p.z) + 4);
+    for (const p of L.props) if (p.label || ['farmhouse', 'barn', 'packing', 'sawmill', 'silo', 'watertower'].includes(p.t)) ctx.fillText(p.label || (p.t === 'packing' ? 'PACKING HOUSE' : p.t.toUpperCase()), px(p.x), px(p.z) + 4);
     ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; for (let g = 0; g <= 10; g++) { ctx.beginPath(); ctx.moveTo(g * size / 10, 0); ctx.lineTo(g * size / 10, size); ctx.moveTo(0, g * size / 10); ctx.lineTo(size, g * size / 10); ctx.stroke(); }
     ctx.fillStyle = 'rgba(232,235,226,.5)'; ctx.font = `500 ${Math.round(size / 50)}px ${MONO}`; ctx.textAlign = 'left'; ctx.fillText('N ↑', 8, 18); ctx.fillText('GRID 23m', 8, size - 10);
   }
@@ -2633,11 +3025,12 @@ function drawOverlay(rdt) {
   c.globalAlpha = 0.92; c.drawImage(MM.cv, (-WORLD - P.x) * k, (-WORLD - P.z) * k, 2 * WORLD * k, 2 * WORLD * k); c.globalAlpha = 1;
   const W2 = (x, z) => [(x - P.x) * k, (z - P.z) * k];
   if (G.bellowRing > 0) { c.strokeStyle = `rgba(255,255,255,${G.bellowRing})`; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, (1 - G.bellowRing) * 45 * k, 0, TAU); c.stroke(); }
-  c.fillStyle = '#ffd23f'; for (const b of bunches) { const [x, z] = W2(b.x, b.z); if (x * x + z * z < ms * ms) { c.beginPath(); c.arc(x, z, 2, 0, TAU); c.fill(); } }
+  c.fillStyle = food().css; for (const b of bunches) { const [x, z] = W2(b.x, b.z); if (x * x + z * z < ms * ms) { c.beginPath(); c.arc(x, z, 2, 0, TAU); c.fill(); } }
   for (const pk of pickups) if (pk.active) { const [x, z] = W2(pk.x, pk.z); c.fillStyle = POWER[pk.type].css; c.save(); c.translate(x, z); c.rotate(hd + Math.PI / 4); c.fillRect(-3.5, -3.5, 7, 7); c.restore(); }
   { const [x, z] = W2(leo.x, leo.z); c.save(); c.translate(x, z); c.rotate(hd); star(c, 0, 0, 7, G.phase === 'gather' ? '#ffd23f' : '#ffb03f'); c.restore(); }
   if (G.phase !== 'gather') { const [x, z] = W2(exfil.x, exfil.z); c.strokeStyle = '#93e06c'; c.lineWidth = 2.5; c.beginPath(); c.arc(x, z, 7, 0, TAU); c.stroke(); }
   for (const f of farmers) { if (!f.active) continue; const vis = P.recon > 0 || f.state === 'chase' || Math.hypot(f.x - P.x, f.z - P.z) < 15; if (!vis) continue; const [x, z] = W2(f.x, f.z); c.save(); c.translate(x, z); c.rotate(-f.yaw + Math.PI); c.fillStyle = f.state === 'chase' ? '#ee4a2f' : f.aware > 0.4 ? '#f3a632' : '#d9d2c8'; c.beginPath(); c.moveTo(0, -5); c.lineTo(4, 4); c.lineTo(-4, 4); c.closePath(); c.fill(); if (f.foreman) { c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke(); } c.restore(); }
+  for (const v of civs) { if (!v.active || Math.hypot(v.x - P.x, v.z - P.z) > 25) continue; const [x, z] = W2(v.x, v.z); c.fillStyle = v.state === 'flee' ? '#ff9ab0' : 'rgba(232,235,226,.6)'; c.beginPath(); c.arc(x, z, 2.2, 0, TAU); c.fill(); }
   for (const d of dogs) { if (!d.active) continue; const vis = P.recon > 0 || d.state === 'chase' || Math.hypot(d.x - P.x, d.z - P.z) < 15; if (!vis) continue; const [x, z] = W2(d.x, d.z); c.fillStyle = d.state === 'chase' ? '#ee4a2f' : '#c8a27a'; c.beginPath(); c.arc(x, z, 3, 0, TAU); c.fill(); }
   c.restore();
   c.save(); c.translate(mx + ms / 2, my + ms / 2); c.fillStyle = '#8fd4ff'; c.beginPath(); c.moveTo(0, -7); c.lineTo(5, 6); c.lineTo(0, 3); c.lineTo(-5, 6); c.closePath(); c.fill();
@@ -2683,6 +3076,7 @@ function drawOverlay(rdt) {
   c.beginPath(); c.moveTo(X - spread - 8, Y); c.lineTo(X - spread, Y); c.moveTo(X + spread, Y); c.lineTo(X + spread + 8, Y); c.moveTo(X, Y + spread); c.lineTo(X, Y + spread + 8); c.stroke();
   c.fillStyle = (P.zone || P.frenzy > 0) ? '#5fd0e0' : '#fff'; c.beginPath(); c.arc(X, Y, 1.8, 0, TAU); c.fill(); c.shadowBlur = 0;
   if (G.hitT > 0) { const s = 8 + (0.28 - G.hitT) * 20; c.strokeStyle = G.hitKill ? '#ee4a2f' : '#fff'; c.lineWidth = 2.5; c.beginPath(); for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.moveTo(X + dx * s, Y + dy * s); c.lineTo(X + dx * (s + 9), Y + dy * (s + 9)); } c.stroke(); }
+  if (P.netT > 0) { c.strokeStyle = `rgba(216,208,176,${Math.min(0.55, P.netT * 0.3)})`; c.lineWidth = 2.5; c.beginPath(); for (let i = -OH; i < OW; i += 46) { c.moveTo(i, 0); c.lineTo(i + OH, OH); c.moveTo(i + OH, 0); c.lineTo(i, OH); } c.stroke(); }
   // feed progress ring
   if (P.feedT > 0) { c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.arc(X, Y, 22, -Math.PI / 2, -Math.PI / 2 + TAU * (P.feedT / 0.36)); c.stroke(); }
 }
@@ -2719,11 +3113,14 @@ function updateWorld(dt, live) {
   G.t += live ? dt : 0;
   for (const f of farmers) f.update(dt);
   for (const d of dogs) d.update(dt);
-  farmers = farmers.filter(f => !f.removed); dogs = dogs.filter(d => !d.removed);
+  for (const v of civs) v.update(dt);
+  farmers = farmers.filter(f => !f.removed); dogs = dogs.filter(d => !d.removed); civs = civs.filter(v => !v.removed);
+  updateNets(dt);
   for (let i = 0; i < farmers.length; i++) for (let j = i + 1; j < farmers.length; j++) {
     const a = farmers[i], b = farmers[j]; if (!a.active || !b.active) continue; const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), m = a.r + b.r;
     if (d < m && d > 0.001) { const p = (m - d) / 2; a.x -= dx / d * p; a.z -= dz / d * p; b.x += dx / d * p; b.z += dz / d * p; }
   }
+  if (P.alive) for (const f of civs) if (f.active) { const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz), m = f.r + 0.95; if (d < m && d > 0.001) { f.x += dx / d * (m - d); f.z += dz / d * (m - d); } }
   if (P.alive) for (const f of farmers) if (f.active) { const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz), m = f.r + 0.95; if (d < m && d > 0.001) { f.x += dx / d * (m - d); f.z += dz / d * (m - d); } }
   updateLeopard(dt);
   const t = G.rt;
@@ -2739,6 +3136,13 @@ function updateWorld(dt, live) {
   }
   if (!live) return;
   G.bunchT -= dt; if (G.bunchT <= 0) { G.bunchT = 5; if (bunches.length < 22) spawnBunch(); }
+  if (rig.stack && Math.random() < dt * 3) PT.spawn({ x: rig.stack.x + rig.g.position.x, y: rig.stack.y, z: rig.stack.z, vx: rand(-0.4, 0.4), vy: rand(1.5, 2.6), vz: rand(-0.4, 0.4), s: rand(0.4, 0.7), c: pick([0x9a9aa4, 0xb8b8c0]), life: rand(2.5, 3.5), g: 0.15, grow: 3.5, drag: 0.3, op: 0.35 });
+  if (L.civilians) { G.civT -= dt; if (G.civT <= 0) { G.civT = 20; if (civs.length < L.civilians) spawnCiv(); } }
+  if (L.depart && G.phase === 'gather') {
+    G.clock -= dt;
+    [[300, '5 minutes'], [120, '2 minutes'], [60, '1 minute'], [30, '30 seconds']].forEach(([sec, msg], i) => { if (G.clock <= sec && !(G.clockWarn & (1 << i))) { G.clockWarn |= 1 << i; notify(`Train departs in ${msg}`, 'Feed the leopard before it leaves', 'red'); SFX.trainWhistle(); } });
+    if (G.clock <= 0 && leo.state === 'captive' && P.alive) startDepart();
+  }
   G.spawnT -= dt; const base = Math.max(3, L.enemies.farmers + DIFF[G.diff].extra);
   if (G.spawnT <= 0) { G.spawnT = 28; if (farmers.filter(f => f.active).length < Math.ceil(base * 0.6)) spawnFarmer(); }
   G.dmgArcs.forEach(a => a.t -= dt); G.dmgArcs = G.dmgArcs.filter(a => a.t > 0);
@@ -2784,6 +3188,8 @@ function updateLights(rdt) {
     const lit = farmers.filter(f => f.active && f.m.lantern).map(f => [f, Math.hypot(f.x - cp.x, f.z - cp.z)]).sort((a, b) => a[1] - b[1]);
     LANTERNS.forEach((l, i) => { const e = lit[i]; if (e && e[1] < 70) { e[0].m.lantern.getWorldPosition(l.position); l.intensity = 2.2 + Math.sin(G.rt * 13 + i) * 0.25 + Math.sin(G.rt * 7.3 + i * 2) * 0.2; } else l.intensity = 0; });
   } else LANTERNS.forEach(l => l.intensity = 0);
+  const lamps = L.town && L.sky.night ? LAMPS.map(l => [l, (l.x - cp.x) ** 2 + (l.z - cp.z) ** 2]).sort((a, b) => a[1] - b[1]) : [];
+  LAMPLIGHTS.forEach((l, i) => { const e = lamps[i]; if (e && e[1] < 3600) { l.position.set(e[0].x, e[0].y, e[0].z); l.intensity = 1.7; } else l.intensity = 0; });
   // lightning
   if (L.sky.rain) {
     G.lightT -= rdt;
@@ -2839,7 +3245,8 @@ function openBrief() {
   $('br-eye').textContent = `MISSION 0${L.id} · ${L.clock} · ${DIFF[G.diff].label.toUpperCase()}`;
   $('br-title').textContent = L.op;
   $('br-text').innerHTML = `<h3>${L.place}</h3>` + L.brief.map(p => `<p>${p}</p>`).join('');
-  $('br-intel').innerHTML = L.intel.map(([a, b]) => `<div><b>${a.toUpperCase()}</b><span>${b}</span></div>`).join('') ;
+  const dep = Math.round((L.depart || 0) * DIFF[G.diff].time);
+  $('br-intel').innerHTML = L.intel.map(([a, b]) => `<div><b>${a.toUpperCase()}</b><span>${b.replace('{depart}', `${Math.floor(dep / 60)}:${String(dep % 60).padStart(2, '0')}`)}</span></div>`).join('') ;
   const cv = $('mapcv'); drawMap(cv.getContext('2d'), cv.width, { brief: true });
 }
 function deploy() {
@@ -2957,7 +3364,7 @@ function tick(rdt, render) {
 function boot() {
   resizeAll(); bindUI(); loadLevel(0); showScreen('menu');
   requestAnimationFrame(frame);
-  window.__hh = { G, P, LEVELS, VM, HIPPO, scene, camera, worldRoot, vmScene, vmCam, PT, get farmers() { return farmers; }, get dogs() { return dogs; }, get leo() { return leo; }, get rig() { return rig; }, startMission, loadLevel, feedOne, step: (n, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, false); }, damagePlayer, applyPower, get pickups() { return pickups; }, get bunches() { return bunches; }, startWin, bellow, eat, bite, startBreak, waterPoint, groundH, waterDist, exfil: () => exfil, keys, BIND, act };
+  window.__hh = { G, P, LEVELS, VM, HIPPO, scene, camera, worldRoot, vmScene, vmCam, PT, get farmers() { return farmers; }, get dogs() { return dogs; }, get civs() { return civs; }, get nets() { return nets; }, get leo() { return leo; }, get rig() { return rig; }, startMission, loadLevel, feedOne, step: (n, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, false); }, damagePlayer, applyPower, get pickups() { return pickups; }, get bunches() { return bunches; }, startWin, bellow, eat, bite, startBreak, waterPoint, groundH, waterDist, exfil: () => exfil, keys, BIND, act };
 }
 boot();
 
