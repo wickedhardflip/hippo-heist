@@ -8,6 +8,10 @@
 - Villagers walk the streets. They scream for the police when they see you, and you can eat them anywhere for health.
 - The leopard eats meat in this mission: steal hams and sausages from the market stalls, the butcher and the sausage carts.
 - New power-up for the village: Smoked Ham, worth three cuts of meat.
+- Touch controls for phones and tablets: a floating move stick, drag to look, and on-screen Bite, Feed, Burst, Bellow, Sneak and pause buttons.
+- Touch devices skip pointer lock, try to go fullscreen in landscape, and default to Low graphics.
+- Menus fit better on phones held sideways.
+- Online leaderboard: one board per mission, filterable and sortable by difficulty, with score posting after a win. Backed by a Cloudflare Worker and D1 database in `leaderboard/`.
 
 ## 2.0
 

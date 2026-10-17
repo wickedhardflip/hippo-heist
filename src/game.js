@@ -4,9 +4,11 @@ const G = {
   settings: { sens: 1, vol: 0.8, fov: 78, killcam: true }, stats: null, waveIdx: 0, spawnT: 0, bunchT: 0, lightT: 10, flash: 0, shake: 0,
   noLock: false, locked: false, hints: {}, progress: {}, hitT: 0, hitKill: false, dmgArcs: [], fade: 1, ambT: 2
 };
+G.touch = matchMedia('(pointer: coarse)').matches; // phones/tablets get on-screen controls (see touch.js)
 const P = { x: 0, z: 0, y: 2, yaw: 0, pitch: 0, vx: 0, vz: 0, alive: false };
 let farmers = [], dogs = [], civs = [], nets = [], bunches = [], pickups = [], hats = [], leo = null, rig = null, exfil = { x: 0, z: 0 }, ROUTES = [];
 const keys = {}; let mouseDown = false;
+const TKEYS = {}, TSTICK = { x: 0, y: 0 }; // touch: held action buttons and the analog move stick
 // ---------- key bindings: [rebindable primary, fixed alternate] ----------
 const ACTIONS = [
   ['forward', 'Move forward', 'KeyW', 'ArrowUp'], ['back', 'Move back', 'KeyS', 'ArrowDown'], ['left', 'Strafe left', 'KeyA', 'ArrowLeft'], ['right', 'Strafe right', 'KeyD', 'ArrowRight'],
@@ -16,14 +18,15 @@ const ACTIONS = [
 const BIND = {};
 function resetBinds() { for (const [a, , k, alt] of ACTIONS) BIND[a] = [k, alt]; }
 resetBinds();
-const act = a => { const b = BIND[a]; return !!(keys[b[0]] || (b[1] && keys[b[1]])); };
+const act = a => { const b = BIND[a]; return !!(keys[b[0]] || (b[1] && keys[b[1]]) || TKEYS[a]); };
 const isAct = (a, code) => BIND[a][0] === code || BIND[a][1] === code;
 function keyName(code) {
   if (!code) return '';
   const M = { Mouse0: 'LMB', Mouse1: 'MMB', Mouse2: 'RMB', Mouse3: 'MB4', Mouse4: 'MB5', Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R-Shift', ControlLeft: 'Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'Alt', AltRight: 'R-Alt', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Tab: 'Tab', CapsLock: 'Caps', Enter: 'Enter', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\' };
   if (M[code]) return M[code]; if (code.startsWith('Key')) return code.slice(3); if (code.startsWith('Digit')) return code.slice(5); if (code.startsWith('Numpad')) return 'Num' + code.slice(6); return code;
 }
-const kn = a => keyName(BIND[a][0]);
+const TOUCH_LBL = { feed: 'FEED', burst: 'BURST', bite: 'BITE', bellow: 'BELLOW', sneak: 'SNEAK' };
+const kn = a => G.touch ? (TOUCH_LBL[a] || a.toUpperCase()) : keyName(BIND[a][0]);
 try { const s = JSON.parse(localStorage.getItem('hh-progress') || '{}'); G.progress = s.progress || {}; Object.assign(G.settings, s.settings || {}); if (G.settings.binds) { for (const a in G.settings.binds) if (BIND[a]) { const v = G.settings.binds[a], p = Array.isArray(v) ? v[0] : v; if (typeof p === 'string' && p) BIND[a][0] = p; if (Array.isArray(v) && (v[1] === null || typeof v[1] === 'string')) BIND[a][1] = v[1]; }
     const seen = new Set(); for (const [a, , k] of ACTIONS) { if (seen.has(BIND[a][0])) BIND[a][0] = k; seen.add(BIND[a][0]); } } } catch (e) { }
 function saveProgress() { G.settings.binds = {}; for (const a in BIND) G.settings.binds[a] = BIND[a].slice(); try { localStorage.setItem('hh-progress', JSON.stringify({ progress: G.progress, settings: G.settings })); } catch (e) { } }
@@ -536,7 +539,7 @@ function startMission(i) {
   G.state = 'playing'; G.t = 0; G.fade = 0;
   HIPPO.g.visible = false;
   $('hud').classList.remove('off');
-  hudReset(); const run = G.runId; insertion(L.insertion, run);
+  hudReset(); const run = G.runId; insertion(L.insertion, run); lbStartRun();
   setTimeout(() => { if (G.state === 'playing' && G.runId === run) { notify('Free the leopard', L.captiveLine); } }, 4200);
   setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(L.food === 'meat' ? `Walk into the hams hanging on the market stalls to grab them. Carry them to the leopard on the train and hold ${kn('feed')} to feed him. Watch the departure clock.` : `Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
 }
@@ -636,6 +639,7 @@ function updatePlayer(dt) {
   for (const k of ['camo', 'pepper', 'frenzy', 'recon']) if (P[k] > 0) { P[k] -= dt; if (P[k] <= 0) { P[k] = 0; SFX.powerdown(); } }
   let ix = 0, iz = 0;
   if (act('forward')) iz += 1; if (act('back')) iz -= 1; if (act('left')) ix -= 1; if (act('right')) ix += 1;
+  ix += TSTICK.x; iz += TSTICK.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = -fz, rz = fx;
   const gh = groundH(P.x, P.z); P.inWater = gh < -0.2; P.deep = gh < -1.1; P.zone = waterDist(P.x, P.z) < ZONE_D;
@@ -854,6 +858,6 @@ function endMission(win) {
   $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, L.town ? 'OFFICERS EATEN' : 'FARMERS EATEN'], [st.fed, food().fed], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], L.civilians ? [st.civs, 'VILLAGERS EATEN'] : [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('b-next').hidden = !(win && G.li < LEVELS.length - 1);
   $('b-retry').textContent = win ? 'Replay' : 'Retry';
-  $('end').hidden = false; refreshMissionList();
+  lbEnd(win); $('end').hidden = false; refreshMissionList();
   compMat.uniforms.sat.value = 0.9;
 }

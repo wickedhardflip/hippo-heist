@@ -1,0 +1,13 @@
+name = "hippo-heist-leaderboard"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Sites allowed to read and post scores (comma separated).
+[vars]
+ALLOWED_ORIGINS = "https://wickedhardflip.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hippo-heist-leaderboard"
+# Created 2026-10-17 through the Cloudflare connector; tables from schema.sql are already loaded.
+database_id = "90f0713b-cf91-4a67-950b-94e34c776c99"

@@ -8,7 +8,7 @@ The farmers of the lower valley have caught a leopard, and they are starving him
 
 ### [▶ Play Hippo Heist in your browser](https://wickedhardflip.github.io/hippo-heist/)
 
-No download, no install. Runs in any modern desktop browser with WebGL. Keyboard and mouse required.
+No download, no install. Runs in any modern browser with WebGL. Play with keyboard and mouse on a computer, or with on-screen touch controls on a phone or tablet.
 
 [<img width="100%" alt="Watch the Hippo Heist trailer on YouTube" src="docs/screenshots/trailer.jpg" />](https://youtu.be/eN5AChiksxU)
 
@@ -47,7 +47,13 @@ You score points for every banana picked and fed, every power-up collected, ever
 | Pause | Esc |
 | Mute | M |
 
+On a phone or tablet, on-screen controls appear during play: put your left thumb anywhere on the left side for a move stick, drag on the right side to look, and use the Bite, Feed, Burst, Bellow and Sneak buttons in the bottom right. The pause button sits next to the minimap. Landscape works best, and graphics default to Low on touch devices.
+
 Every key can be rebound from the Controls panel on the main menu. Mouse sensitivity, volume, field of view, graphics quality and the killcam can all be set there too.
+
+## Leaderboard
+
+Each mission has an online leaderboard, which you can open from the main menu or after a win. When you complete a mission, you can post your score under any name you like. The board can be filtered and sorted by difficulty, score, time or name. The backend is a small Cloudflare Worker described in [leaderboard/](leaderboard/README.md).
 
 ## Missions
 

@@ -347,7 +347,7 @@ function refreshMissionList() {
   $('mlist').innerHTML = LEVELS.map((lv, i) => { const pr = G.progress[lv.id]; return `<button class="mcard${i === G.li ? ' sel' : ''}" data-i="${i}"><span class="n">0${lv.id}</span><span><span class="nm">${lv.op}</span><div class="loc">${lv.place} · ${lv.captiveLine}</div></span><span class="st">${pr && pr.done ? 'COMPLETE<br>' + pr.best : lv.clock}</span></button>`; }).join('');
   $('mlist').querySelectorAll('.mcard').forEach(b => b.onclick = () => { SFX.ui(); const i = +b.dataset.i; if (i !== G.li) { G.li = i; loadLevel(i); } refreshMissionList(); });
 }
-function showScreen(id) { ['menu', 'brief', 'pause', 'end', 'clicklock'].forEach(s => $(s).hidden = s !== id); }
+function showScreen(id) { ['menu', 'brief', 'pause', 'end', 'clicklock', 'board'].forEach(s => $(s).hidden = s !== id); }
 function openBrief() {
   G.state = 'brief'; showScreen('brief');
   $('br-eye').textContent = `MISSION 0${L.id} · ${L.clock} · ${DIFF[G.diff].label.toUpperCase()}`;
@@ -363,6 +363,7 @@ function deploy() {
 }
 function requestLock() {
   const el = $('game');
+  if (G.touch) { G.noLock = true; goFull(); return; }
   if (!el.requestPointerLock) { G.noLock = true; return; }
   const fail = () => { if (!G.noLock && G.state === 'playing' && !document.pointerLockElement) { G.state = 'paused'; showScreen('clicklock'); if (AU.ctx) AU.ctx.suspend(); } };
   try { const r = el.requestPointerLock(); if (r && r.catch) r.catch(fail); } catch (e) { fail(); }
@@ -382,6 +383,7 @@ function bindUI() {
   camera.fov = G.settings.fov; camera.updateProjectionMatrix();
   $('qseg').querySelectorAll('button').forEach(b => { b.classList.toggle('on', b.dataset.q === RQ.quality); b.onclick = () => { SFX.ui(); RQ.quality = b.dataset.q; $('qseg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); resizeAll(); loadLevel(G.li); }; });
   $('kseg').querySelectorAll('button').forEach(b => { b.classList.toggle('on', (b.dataset.k === '1') === G.settings.killcam); b.onclick = () => { SFX.ui(); G.settings.killcam = b.dataset.k === '1'; $('kseg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); saveProgress(); }; });
+  lbInit();
   $('b-brief').onclick = () => { SFX.ui(); AU.init(); AU.setVolume(G.settings.vol); openBrief(); };
   $('b-back').onclick = () => { SFX.ui(); G.state = 'menu'; showScreen('menu'); };
   $('b-deploy').onclick = () => { SFX.ui(); deploy(); };
@@ -392,7 +394,7 @@ function bindUI() {
   $('b-next').onclick = () => { G.li = Math.min(LEVELS.length - 1, G.li + 1); loadLevel(G.li); openBrief(); };
   $('b-menu').onclick = () => { loadLevel(G.li); toMenu(); };
   $('clicklock').onclick = () => { showScreen(null); G.state = 'playing'; if (AU.ctx) AU.ctx.resume(); requestLock(); };
-  if (matchMedia('(pointer: coarse)').matches) $('touchnote').textContent = 'Keyboard and mouse required.';
+  if (G.touch) touchUI();
 }
 
 // ---------- input ----------
