@@ -10,6 +10,8 @@ The farmers of the lower valley have caught a leopard, and they are starving him
 
 No download, no install. Runs in any modern desktop browser with WebGL. Keyboard and mouse required.
 
+[<img width="100%" alt="Watch the Hippo Heist trailer on YouTube" src="docs/screenshots/trailer.jpg" />](https://youtu.be/eN5AChiksxU)
+
 <img width="100%" alt="Mission 1, Chain Breaker: the hippo looks out over the Lower Valley Plantation banana groves at sunrise" src="docs/screenshots/mission1-chain-breaker.jpg" />
 
 ## How to play
