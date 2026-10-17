@@ -5,7 +5,7 @@ const G = {
   noLock: false, locked: false, hints: {}, progress: {}, hitT: 0, hitKill: false, dmgArcs: [], fade: 1, ambT: 2
 };
 const P = { x: 0, z: 0, y: 2, yaw: 0, pitch: 0, vx: 0, vz: 0, alive: false };
-let farmers = [], dogs = [], bunches = [], pickups = [], hats = [], leo = null, rig = null, exfil = { x: 0, z: 0 }, ROUTES = [];
+let farmers = [], dogs = [], civs = [], nets = [], bunches = [], pickups = [], hats = [], leo = null, rig = null, exfil = { x: 0, z: 0 }, ROUTES = [];
 const keys = {}; let mouseDown = false;
 // ---------- key bindings: [rebindable primary, fixed alternate] ----------
 const ACTIONS = [
@@ -45,6 +45,7 @@ function buildRoutes() {
 function nearestWp(a) { let bi = 0, bd = 1e9; a.route.forEach((p, i) => { const d = Math.hypot(p.x - a.x, p.z - a.z); if (d < bd) { bd = d; bi = i; } }); return bi; }
 // route through the pen gate when the agent and its target are on opposite sides of the level-1 fence
 function viaGate(a, tx, tz) {
+  if (HOUSES.length) return viaDoor(a, tx, tz);
   if (!rig || rig.type !== 'chain') return [tx, tz];
   const cx = rig.x, cz = rig.z, R = 9, gx = cx - R, gz = cz;
   const inA = Math.hypot(a.x - cx, a.z - cz) < R, inT = Math.hypot(tx - cx, tz - cz) < R;
@@ -60,6 +61,13 @@ function viaGate(a, tx, tz) {
   if (inT && Math.abs(dg) < 0.3) return [gx - 1, gz];
   const tn = ta + Math.sign(dg || 1) * Math.min(Math.abs(dg), 0.6);
   return [cx + Math.cos(tn) * 12.5, cz + Math.sin(tn) * 12.5];
+}
+// village houses: walk out through the door before heading elsewhere, and in through it to reach a target inside
+function viaDoor(a, tx, tz) {
+  const hA = indoorOf(a.x, a.z, 0.4), hT = indoorOf(tx, tz);
+  if (hA === hT) return [tx, tz];
+  if (hA) return Math.hypot(a.x - hA.door.x, a.z - hA.door.z) < 1.3 ? [hA.out.x, hA.out.z] : [hA.door.x, hA.door.z];
+  return Math.hypot(a.x - hT.door.x, a.z - hT.door.z) < 3.0 ? [hT.inn.x, hT.inn.z] : [hT.out.x, hT.out.z];
 }
 function stepAgent(a, tx, tz, spd, dt, r, turn, waterMul = 0.45) {
   [tx, tz] = viaGate(a, tx, tz);
@@ -77,7 +85,7 @@ function stepAgent(a, tx, tz, spd, dt, r, turn, waterMul = 0.45) {
 class Farmer {
   constructor(x, z, route, opt = {}) {
     this.tool = opt.tool || pick(L.enemies.tools); this.T = TOOLS[this.tool]; this.foreman = !!opt.foreman;
-    this.m = makeFarmer(this.tool, { lantern: L.enemies.lanterns, foreman: this.foreman });
+    this.m = makeFarmer(this.tool, { lantern: L.enemies.lanterns, foreman: this.foreman, look: opt.look || L.enemies.look }); this.netCool = rand(2, 4); this.aimT = 0;
     this.name = opt.name || pick(FARMER_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
     this.state = 'patrol'; this.aware = 0; this.hp = this.foreman ? 220 : 100; this.atk = 0; this.atkEl = 0; this.cool = 0; this.hitDone = false;
     this.lk = { x, z }; this.lost = 0; this.walk = rand(0, 10); this.spd = 0; this.stun = 0; this.kx = 0; this.kz = 0; this.side = 0; this.sideT = 0;
@@ -94,10 +102,11 @@ class Farmer {
     if (this.state !== 'chase') {
       G.stats.spotted++;
       if (shout) {
-        SFX.shout(this, this.foreman ? 0.7 : 1); if (G.state === 'playing') SFX.alert();
-        if (!G.hints.spotted) { G.hints.spotted = 1; hint('You have been spotted. Run for the water. Your bite is lethal there.', 6); }
-        killfeedRaw(`<span class="en">${this.name}</span><span class="w">SPOTTED YOU</span>`);
-        for (const o of farmers) if (o !== this && Math.hypot(o.x - this.x, o.z - this.z) < 34) o.hear(P.x, P.z, 0.85);
+        if (L.enemies.whistle) SFX.whistle(this); else SFX.shout(this, this.foreman ? 0.7 : 1); if (G.state === 'playing') SFX.alert();
+        if (!G.hints.spotted) { G.hints.spotted = 1; hint(L.spotHint || 'You have been spotted. Run for the water. Your bite is lethal there.', 6); }
+        killfeedRaw(`<span class="en">${this.name}</span><span class="w">${L.enemies.whistle ? 'BLEW THE WHISTLE' : 'SPOTTED YOU'}</span>`);
+        const call = L.enemies.whistle ? 50 : 34;
+        for (const o of farmers) if (o !== this && Math.hypot(o.x - this.x, o.z - this.z) < call) o.hear(P.x, P.z, 0.85);
       }
     }
     this.state = 'chase'; this.aware = 1.25; this.lost = 0; this.lk = { x: P.x, z: P.z };
@@ -124,8 +133,9 @@ class Farmer {
     if (P.alive && G.state === 'playing' && !G.killcam && !G.cine) {
       range = 30 * (P.sneak ? 0.55 : 1) * (P.camo > 0 ? 0.38 : 1);
       if (inField(P.x, P.z)) range *= 0.72; if (P.deep) range *= P.sneak ? 0.38 : 0.7;
-      if (L.sky.night) range *= (this.m.lantern && d < 12) ? 1 : 0.62;
+      if (L.sky.night) range *= ((this.m.lantern && d < 12) || P.lit) ? 1 : 0.62;
       if (this.state === 'chase') range = Math.max(range, 44);
+      if (P.indoor && indoorOf(this.x, this.z) !== P.indoor) range = Math.min(range, 6);
       const ang = Math.abs(angDiff(this.yaw, Math.atan2(dx, dz))), fov = this.state === 'chase' ? Math.PI : 1.15;
       if (d < range && (ang < fov || d < 3.5) && COL.los(this.x, this.z, P.x, P.z)) seen = true;
       if (!seen && !P.inWater && d < (P.sprinting ? 13 : 4.5) && this.state !== 'chase') this.aware += dt * 0.55 * D.detect;
@@ -165,6 +175,11 @@ class Farmer {
       if (this.atk <= 0) this.cool = this.T.cool * rand(0.85, 1.25);
     }
     if (this.cool > 0) this.cool -= dt;
+    if (this.T.ranged) {
+      this.netCool -= dt;
+      if (this.state === 'chase' && seen && d > 4.5 && d < 18 && this.netCool <= 0 && this.atk <= 0 && P.alive && !P.invuln && G.state === 'playing' && !G.killcam && !G.cine) { this.netCool = rand(4.5, 6.5); this.aimT = 0.45; fireNet(this); }
+      if (this.aimT > 0) { this.aimT -= dt; spd = 0; pose = 'alert'; }
+    }
     this.shoutT -= dt;
     if (spd > 0) {
       const r = stepAgent(this, tx, tz, spd, dt, this.r, this.state === 'chase' ? 7 : 3.5);
@@ -213,10 +228,93 @@ class Farmer {
   }
 }
 
+// ---------- villagers: harmless, but they scream for the police ----------
+class Civilian {
+  constructor(x, z, route) {
+    this.m = makeFarmer('none', { look: 'civ' }); this.tool = 'none'; this.T = { wind: 0.3 };
+    const used = new Set(civs.map(c => c.name)); this.name = CIV_NAMES.find(n => !used.has(n)) || pick(CIV_NAMES);
+    this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
+    this.state = 'walk'; this.aware = 0; this.walk = rand(0, 10); this.spd = 0; this.r = 0.38; this.removed = false; this.side = 0; this.sideT = 0;
+    this.pace = rand(1.1, 1.6); this.fleeT = 0; this.screamT = 0; this.prog = { x, z, t: 0 };
+    this.anim(0, 0, 'walk');
+  }
+  get active() { return this.state !== 'eaten' && !this.removed; }
+  remove() { this.removed = true; worldRoot.remove(this.m.g); }
+  panic() {
+    if (this.state === 'flee') { this.fleeT = 8; return; }
+    this.state = 'flee'; this.fleeT = 8; this.screamT = rand(1.5, 2.5); SFX.scream(this);
+    for (const f of farmers) if (f.active && Math.hypot(f.x - this.x, f.z - this.z) < 45) f.hear(P.x, P.z, 0.9);
+    killfeedRaw(`<span class="en">${this.name}</span><span class="w">SCREAMED FOR HELP</span>`);
+    if (!G.hints.civ) { G.hints.civ = 1; hint('A villager saw you and screamed for the police. Eat witnesses before they run, or stay out of sight.', 6); }
+  }
+  update(dt) {
+    if (this.removed) return;
+    if (this.state === 'eaten') { this.quickEat(dt); return; }
+    const dx = P.x - this.x, dz = P.z - this.z, d = Math.hypot(dx, dz);
+    let seen = false;
+    if (P.alive && G.state === 'playing' && !G.killcam && !G.cine && this.state !== 'flee') {
+      let range = 20 * (P.sneak ? 0.55 : 1) * (P.camo > 0 ? 0.4 : 1); if (P.deep) range *= 0.4; if (L.sky.night && !P.lit) range *= 0.6;
+      if (P.indoor && indoorOf(this.x, this.z) !== P.indoor) range = Math.min(range, 5);
+      const ang = Math.abs(angDiff(this.yaw, Math.atan2(dx, dz)));
+      if (d < range && (ang < 1.25 || d < 3) && COL.los(this.x, this.z, P.x, P.z)) seen = true;
+      if (seen) this.aware += dt * (0.7 + 2.2 * Math.max(0, 1 - d / range)) * DIFF[G.diff].detect; else this.aware = Math.max(0, this.aware - dt * 0.25);
+      if (this.aware >= 0.7) this.panic();
+    }
+    this.seen = seen;
+    let tx, tz, spd;
+    if (this.state === 'flee') {
+      this.fleeT -= dt; this.screamT -= dt; if (this.screamT <= 0 && d < 30) { SFX.scream(this, 0.6); this.screamT = rand(2, 3.5); }
+      const k = 8 / (d || 1); tx = this.x - dx * k; tz = this.z - dz * k; spd = 5.2;
+      if (this.fleeT <= 0 && d > 22) { this.state = 'walk'; this.aware = 0; this.wp = nearestWp(this); }
+    } else {
+      const w = this.route[this.wp]; tx = w.x; tz = w.z; spd = this.pace; if (Math.hypot(tx - this.x, tz - this.z) < 1.8) this.wp = (this.wp + 1) % this.route.length;
+      if (this.aware > 0.25) { spd = 0; this.yaw += clamp(angDiff(this.yaw, Math.atan2(dx, dz)), -3 * dt, 3 * dt); }
+    }
+    if (spd > 0) {
+      const r = stepAgent(this, tx, tz, spd, dt, this.r, this.state === 'flee' ? 7 : 3, 0.4); this.spd = Math.max(0, r);
+      this.prog.t += dt;
+      if (this.prog.t > 1.1) { if (Math.hypot(this.x - this.prog.x, this.z - this.prog.z) < 0.5) { if (this.state === 'flee') { this.side = Math.random() < 0.5 ? -1 : 1; this.sideT = 1.3; } else this.wp = (this.wp + 1) % this.route.length; } this.prog = { x: this.x, z: this.z, t: 0 }; }
+    } else this.spd = 0;
+    if (this.sideT > 0) { this.sideT -= dt; if (this.sideT <= 0) this.side = 0; }
+    this.anim(dt, this.spd, this.state === 'flee' && this.spd < 1 ? 'cower' : 'walk');
+  }
+}
+Civilian.prototype.anim = Farmer.prototype.anim; Civilian.prototype.quickEat = Farmer.prototype.quickEat;
+function spawnCiv(route) { const [r, p] = route ? [route, route[randi(0, route.length - 1)]] : farRoutePoint(40); const c = new Civilian(p.x + rand(-2, 2), p.z + rand(-2, 2), r); civs.push(c); return c; }
+function eatCiv(c) {
+  c.state = 'eaten'; c.eatT = 0; P.hp = Math.min(100, P.hp + 30); G.score += 60; G.stats.civs++; hitmark(true);
+  SFX.crunch(c); SFX.gulp(); xp('+60', 'SNACK'); killfeedRaw(`<span class="you">HIPPO</span><span class="w">SNACKED ON</span><span class="en">${c.name}</span>`);
+  if (groundH(c.x, c.z) < 0.1) splash(c.x, c.z, 20, 0.8); else dust(c.x, groundH(c.x, c.z) + 0.2, c.z, 10);
+  for (const o of civs) if (o !== c && o.active && Math.hypot(o.x - c.x, o.z - c.z) < 16 && COL.los(o.x, o.z, c.x, c.z)) o.panic();
+  G.heat++;
+  if (G.heat % 3 === 0) { spawnFarmer({ alert: true }); notify('A witness called the police', 'Another constable is on the way', 'red'); }
+  if (!G.hints.snack) { G.hints.snack = 1; hint('Villagers restore health, but every few you eat brings another constable.', 6); }
+}
+// ---------- net gun ----------
+const netGeo = new THREE.IcosahedronGeometry(1, 1); netGeo.userData.keep = true;
+const netMat = new THREE.MeshBasicMaterial({ color: 0xd8d0b0, wireframe: true, transparent: true, opacity: 0.85 });
+function fireNet(f) {
+  const tx = P.x + P.vx * 0.35, tz = P.z + P.vz * 0.35, dx = tx - f.x, dz = tz - f.z, d = Math.hypot(dx, dz) || 1, sp = 19, y = groundH(f.x, f.z) + 1.4;
+  const m = new THREE.Mesh(netGeo, netMat); m.position.set(f.x, y, f.z); worldRoot.add(m);
+  nets.push({ x: f.x, y, z: f.z, vx: dx / d * sp, vz: dz / d * sp, vy: 1.4, t: 0, m, src: f }); f.yaw = Math.atan2(dx, dz); SFX.netgun(f);
+}
+function updateNets(dt) {
+  for (const n of nets) {
+    n.t += dt; n.vy -= 4 * dt; const px = n.x, pz = n.z; n.x += n.vx * dt; n.z += n.vz * dt; n.y += n.vy * dt;
+    const s = 0.3 + Math.min(1, n.t * 3) * 0.9; n.m.scale.set(s, s * 0.45, s); n.m.rotation.y += dt * 6; n.m.position.set(n.x, n.y, n.z);
+    if (P.alive && !P.invuln && Math.hypot(n.x - P.x, n.z - P.z) < 1.8) {
+      n.dead = true; P.netT = 2.6; damagePlayer(n.src.T.dmg * DIFF[G.diff].dmg, n.src, 0); SFX.netHit();
+      if (!G.hints.net) { G.hints.net = 1; hint(`Tangled in a net. Mash ${kn('bite')} to tear free.`, 5); }
+    } else if (n.t > 1.4 || n.y < groundH(n.x, n.z) || !COL.los(px, pz, n.x, n.z)) n.dead = true;
+    if (n.dead) worldRoot.remove(n.m);
+  }
+  nets = nets.filter(n => !n.dead);
+}
+
 // ---------- dogs ----------
 class Dog {
   constructor(x, z, route) {
-    this.m = makeDog(); this.name = pick(DOG_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
+    this.m = makeDog(); this.name = pick(L.enemies.dogNames || DOG_NAMES); this.x = x; this.z = z; this.yaw = rand(0, TAU); this.route = route; this.wp = 0; this.wp = nearestWp(this);
     this.state = 'roam'; this.aware = 0; this.walk = 0; this.spd = 0; this.cool = 0; this.barkT = 0; this.fleeT = 0; this.bites = 0; this.r = 0.35; this.removed = false; this.side = 0; this.sideT = 0;
   }
   get active() { return !this.removed && this.state !== 'gone'; }
@@ -235,7 +333,7 @@ class Dog {
     else if (this.state === 'flee') { this.fleeT -= dt; tx = this.x - dx; tz = this.z - dz; spd = 9; if (this.fleeT <= 0) { this.state = 'roam'; this.wp = nearestWp(this); } }
     else {
       if (P.alive && G.state === 'playing' && !G.cine && !G.killcam) {
-        let range = 20 * (P.camo > 0 ? 0.45 : 1) * (P.sneak ? 0.75 : 1); if (P.deep) range *= 0.3;
+        let range = 20 * (P.camo > 0 ? 0.45 : 1) * (P.sneak ? 0.75 : 1); if (P.deep) range *= 0.3; if (P.indoor) range *= 0.5;
         if (d < range) this.aware = Math.min(1.2, this.aware + dt * (0.6 + 2 * (1 - d / range)) * D.detect); else this.aware = Math.max(0, this.aware - dt * 0.2);
       }
       if (this.state === 'roam' && this.aware >= 1) { this.state = 'chase'; this.bark(); G.stats.spotted++; }
@@ -350,20 +448,22 @@ function farRoutePoint(minD = 45) {
   return pts.length ? pick(pts) : [ROUTES[0], ROUTES[0][0]];
 }
 function spawnFarmer(opt = {}) {
-  const [r, p] = opt.route ? [opt.route, opt.route[randi(0, opt.route.length - 1)]] : farRoutePoint();
-  const used = new Set(farmers.map(f => f.name)); const name = FARMER_NAMES.find(n => !used.has(n)) || pick(FARMER_NAMES);
+  let [r, p] = opt.route ? [opt.route, opt.route[randi(0, opt.route.length - 1)]] : farRoutePoint();
+  if (opt.route && L.town) { const s = waterPoint(L.start), far = r.filter(q => Math.hypot(q.x - s.x, q.z - s.z) > 40); if (far.length) p = pick(far); }
+  const NAMES = L.enemies.names || FARMER_NAMES, used = new Set(farmers.map(f => f.name)), pre = opt.rank ? opt.rank + ' ' : '';
+  const name = pre + (NAMES.find(n => !used.has(pre + n)) || pick(NAMES));
   const f = new Farmer(p.x + rand(-1, 1), p.z + rand(-1, 1), r, Object.assign({ name }, opt)); farmers.push(f); return f;
 }
 function spawnDog(opt = {}) { const [r, p] = opt.route ? [opt.route, opt.route[0]] : farRoutePoint(30); const d = new Dog(p.x, p.z, r); dogs.push(d); return d; }
 function spawnBunch() {
   const free = TREES.filter(t => !t.bunch && (!P.alive || Math.hypot(t.x - P.x, t.z - P.z) > 10)); if (!free.length) return;
-  const t = pick(free), a = rand(0, TAU), m = new THREE.Mesh(bunchGeo, bunchMat);
-  const b = { tree: t, m, x: t.tx + Math.cos(a) * 0.42, z: t.tz + Math.sin(a) * 0.42, y: t.top - 0.85, ph: rand(0, 6) };
+  const meat = L.food === 'meat', t = pick(free), a = rand(0, TAU), m = new THREE.Mesh(meat ? meatGeo : bunchGeo, meat ? meatMat : bunchMat), o = meat ? 0 : 0.42;
+  const b = { tree: t, m, x: t.tx + Math.cos(a) * o, z: t.tz + Math.sin(a) * o, y: t.top - 0.85, ph: rand(0, 6) };
   m.position.set(b.x, b.y, b.z); m.rotation.set(0.15, rand(0, TAU), 0); m.castShadow = true; worldRoot.add(m); t.bunch = b; bunches.push(b);
 }
 const PU_GEO = {
   golden: new THREE.TorusGeometry(0.45, 0.13, 10, 20, 2.2), melon: new THREE.SphereGeometry(0.45, 16, 12), pepper: new THREE.ConeGeometry(0.2, 0.8, 10), camo: new THREE.CylinderGeometry(0.3, 0.36, 0.6, 12),
-  hide: new THREE.CylinderGeometry(0.5, 0.5, 0.12, 6), parrot: new THREE.SphereGeometry(0.28, 12, 10), frenzy: new THREE.ConeGeometry(0.22, 0.75, 8)
+  hide: new THREE.CylinderGeometry(0.5, 0.5, 0.12, 6), parrot: new THREE.SphereGeometry(0.28, 12, 10), frenzy: new THREE.ConeGeometry(0.22, 0.75, 8), roast: new THREE.SphereGeometry(0.42, 14, 10)
 };
 Object.values(PU_GEO).forEach(g => g.userData.keep = true);
 const beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 14, 16, 1, true); beamGeo.translate(0, 7, 0); beamGeo.userData.keep = true;
@@ -378,6 +478,7 @@ function makePickup(type, x, z) {
   if (type === 'pepper') { core.rotation.x = Math.PI; mk(GEO.cyl8, mat(0x3a7a2a), 0, 0.48, 0, 0.04, 0.2, 0.04, holder); }
   if (type === 'parrot') { mk(GEO.cone, mat(0xffd23a), 0, 0.02, 0.3, 0.08, 0.2, 0.08, holder).rotation.x = Math.PI / 2; mk(GEO.cone, em, 0, -0.1, -0.4, 0.12, 0.5, 0.06, holder).rotation.x = -Math.PI / 2 - 0.4; }
   if (type === 'hide') core.rotation.x = Math.PI / 2;
+  if (type === 'roast') { core.scale.set(1, 0.8, 1.3); mk(GEO.cyl8, mat(0xeee4cc), 0, 0, 0.62, 0.07, 0.4, 0.07, holder).rotation.x = Math.PI / 2; }
   const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: pw.color, transparent: true, opacity: 0.85 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; g.add(ring);
   const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: pw.color, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(beam);
   worldRoot.add(g);
@@ -397,7 +498,7 @@ function powerSpots() {
 }
 
 // ---------- level lifecycle ----------
-function newStats() { return { eaten: 0, ko: 0, dogs: 0, bananas: 0, fed: 0, spotted: 0, time: 0, power: 0, dmg: 0 }; }
+function newStats() { return { eaten: 0, ko: 0, dogs: 0, bananas: 0, fed: 0, spotted: 0, time: 0, power: 0, dmg: 0, civs: 0 }; }
 function cleanupCine() {
   G.killcam = null; G.cine = null; HIPPO.g.visible = false; HIPPO.body.rotation.set(0, 0, 0); HIPPO.body.position.y = 0; HIPPO.headPivot.rotation.set(0, 0, 0); HIPPO.head.setOpen(0);
   while (HIPPO.mouthHold.children.length) HIPPO.mouthHold.remove(HIPPO.mouthHold.children[0]);
@@ -410,20 +511,23 @@ function loadLevel(i) {
   const night = !!L.sky.night; vmHemi.intensity = night ? 0.42 : 0.55; vmHemi.color.set(night ? 0x9fb4d8 : 0xfff4e6); vmSun.intensity = night ? 0.32 : 0.55; vmSun.color.set(night ? 0xa8c0ff : 0xffe2b8);
   rig = makeRig(L.captive); leo = initLeopard();
   exfil = waterPoint(L.exfil); exfil.y = groundH(exfil.x, exfil.z);
-  farmers = []; dogs = []; bunches = []; pickups = []; hats = [];
+  farmers = []; dogs = []; civs = []; nets = []; bunches = []; pickups = []; hats = [];
+  const meat = L.food === 'meat'; VM.bunch.geometry = meat ? meatGeo : bunchGeo; VM.bunch.material = meat ? meatMat : bunchMat;
   ROUTES = buildRoutes();
   P.alive = false; P.x = L.captive.x + 30; P.z = L.captive.z + 30;
   const n = Math.max(3, L.enemies.farmers + DIFF[G.diff].extra);
   for (let k = 0; k < n; k++) { const r = ROUTES[k % ROUTES.length]; spawnFarmer({ route: r }); }
   for (let k = 0; k < L.enemies.dogs; k++) spawnDog({ route: ROUTES[(k * 3 + 1) % ROUTES.length] });
+  for (let k = 0; k < (L.civilians || 0); k++) spawnCiv(ROUTES[(k * 5 + 2) % ROUTES.length]);
   for (let k = 0; k < 24; k++) spawnBunch();
   const types = L.power; powerSpots().forEach((p, k) => pickups.push(makePickup(types[k % types.length], p.x, p.z)));
   G.strength = 0; G.phase = 'gather'; G.waveIdx = 0; G.score = 0; G.stats = newStats(); G.spawnT = 25; G.bunchT = 4; G.killcam = null; G.cine = null; G.dmgArcs = []; G.hints = {};
+  G.clock = L.depart ? L.depart * DIFF[G.diff].time : 0; G.clockWarn = 0; G.failReason = ''; G.heat = 0; G.civT = 20;
   buildMinimap(); initRain();
 }
 function resetPlayer() {
   const s = waterPoint(L.start);
-  Object.assign(P, { x: s.x, z: s.z, vx: 0, vz: 0, hp: 100, armor: 0, stamina: 100, winded: false, fovK: 0, carry: 0, cap: L.cap, alive: true, biteCool: 0, jawT: 1, bellowCool: 0, camo: 0, pepper: 0, frenzy: 0, recon: 0, lastHit: 99, sneak: false, sprinting: false, lunge: 0, stepPh: 0, feedT: 0, invuln: 0, bob: 0, swayX: 0, swayY: 0, pitch: -0.05, inWater: false, deep: false, zone: false, hitTilt: 0 });
+  Object.assign(P, { x: s.x, z: s.z, vx: 0, vz: 0, hp: 100, armor: 0, stamina: 100, winded: false, fovK: 0, carry: 0, cap: L.cap, alive: true, biteCool: 0, jawT: 1, bellowCool: 0, camo: 0, pepper: 0, frenzy: 0, recon: 0, lastHit: 99, netT: 0, indoor: null, lit: false, sneak: false, sprinting: false, lunge: 0, stepPh: 0, feedT: 0, invuln: 0, bob: 0, swayX: 0, swayY: 0, pitch: -0.05, inWater: false, deep: false, zone: false, hitTilt: 0 });
   P.yaw = Math.atan2(-(L.captive.x - P.x), -(L.captive.z - P.z));
   P.y = groundH(P.x, P.z) + 1.55;
 }
@@ -434,7 +538,7 @@ function startMission(i) {
   $('hud').classList.remove('off');
   hudReset(); const run = G.runId; insertion(L.insertion, run);
   setTimeout(() => { if (G.state === 'playing' && G.runId === run) { notify('Free the leopard', L.captiveLine); } }, 4200);
-  setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(`Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
+  setTimeout(() => { if (G.state === 'playing' && G.runId === run && !G.hints.move) { G.hints.move = 1; hint(L.food === 'meat' ? `Walk into the hams hanging on the market stalls to grab them. Carry them to the leopard on the train and hold ${kn('feed')} to feed him. Watch the departure clock.` : `Walk into banana bunches on the trees to grab them. Carry them to the leopard and hold ${kn('feed')} to feed him. Hold ${kn('burst')} for a burst of speed.`, 8); } }, 7500);
 }
 
 // ---------- player ----------
@@ -461,14 +565,16 @@ function poseHippo(x, z, yaw, open) {
 }
 function bite() {
   P.biteCool = 0.5; P.jawT = 0;
+  if (P.netT > 0) { P.netT -= 0.7; P.biteCool = 0.16; SFX.rip(); if (P.netT <= 0) { P.netT = 0; sparkle(P.x, P.y - 0.4, P.z, 0xd8d0b0, 12); } return; }
   const lethal = P.zone || P.frenzy > 0, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
   let reach = lethal ? 3.4 : 2.7;
   if (lethal && P.inWater) { P.lunge = 0.22; P.lungeDir = { x: fx, z: fz }; reach += 1.6; splash(P.x + fx * 1.5, P.z + fz * 1.5, 12, 0.7); SFX.splash({ x: P.x, z: P.z }, 0.25); }
   let best = null, bd = 1e9;
   const test = (e, r) => { const dx = e.x - P.x, dz = e.z - P.z, d = Math.hypot(dx, dz); if (d > reach + r) return; const a = Math.abs(angDiff(Math.atan2(dx, dz), Math.atan2(fx, fz))); if (a > 0.8 && d > 1.8) return; if (d < bd) { bd = d; best = e; } };
-  farmers.forEach(f => { if (f.active) test(f, f.r); }); dogs.forEach(d => { if (d.active && d.state !== 'flee') test(d, 0.4); });
+  farmers.forEach(f => { if (f.active) test(f, f.r); }); dogs.forEach(d => { if (d.active && d.state !== 'flee') test(d, 0.4); }); civs.forEach(c => { if (c.active) test(c, c.r); });
   if (!best) { SFX.whiff(); SFX.chomp(); return; }
   SFX.chomp(best);
+  if (best instanceof Civilian) { eatCiv(best); return; }
   if (best instanceof Dog) { best.bitten(); hitmark(false); return; }
   if (lethal) { eat(best); return; }
   best.hp -= 34; best.stun = 1.1; const d = Math.hypot(best.x - P.x, best.z - P.z) || 1; best.kx = (best.x - P.x) / d * 7; best.kz = (best.z - P.z) / d * 7; best.atk = 0;
@@ -490,6 +596,7 @@ function bellow() {
   P.bellowCool = 10; SFX.bellow(); G.shake = Math.min(1, G.shake + 0.3); let n = 0;
   for (const f of farmers) if (f.active && Math.hypot(f.x - P.x, f.z - P.z) < 45) { f.hear(P.x, P.z, 0.75); n++; }
   for (const d of dogs) if (d.active && d.state === 'roam' && Math.hypot(d.x - P.x, d.z - P.z) < 40) d.aware = Math.max(d.aware, 0.8);
+  for (const c of civs) if (c.active && Math.hypot(c.x - P.x, c.z - P.z) < 30) c.panic();
   G.bellowRing = 1;
   if (n) xp('', `${n} LURED`);
   if (P.inWater) splash(P.x, P.z, 10, 0.5);
@@ -500,19 +607,20 @@ function feedOne() {
   SFX.feed(leo); G.score += 40; xp('+40', 'FED');
   sparkle(leo.x, (rig.leoBase.y || 0) + 1.4, leo.z, 0xffd23f, 8);
   for (const w of L.waves.slice(G.waveIdx)) { if (before < w.at && G.strength >= w.at) { G.waveIdx++; doWave(w); } }
-  for (const th of [25, 50, 75]) if (before < th && G.strength >= th) { notify(`Leopard strength ${th}%`, th === 75 ? 'He is almost ready to break free' : 'Keep the bananas coming'); SFX.growl(leo); leo.roar = 0.6; }
+  for (const th of [25, 50, 75]) if (before < th && G.strength >= th) { notify(`Leopard strength ${th}%`, th === 75 ? 'He is almost ready to break free' : `Keep the ${food().many} coming`); SFX.growl(leo); leo.roar = 0.6; }
   if (G.strength >= 100 && leo.state === 'captive' && !G.killcam && !G.cine) startBreak();
 }
 function doWave(w) {
-  for (let k = 0; k < (w.f || 0); k++) spawnFarmer({ alert: true });
+  for (let k = 0; k < (w.f || 0); k++) spawnFarmer({ alert: true, tool: w.tool, look: w.look, rank: w.rank });
   for (let k = 0; k < (w.d || 0); k++) spawnDog();
   if (w.foreman) { const f = spawnFarmer({ tool: 'chainsaw', foreman: true, alert: true, name: 'Foreman Boyd' }); notify('The foreman is here', 'Chainsaw. Do not fight him on land'); SFX.sting(); return; }
-  notify('Reinforcements inbound', `${(w.f || 0) + (w.d || 0)} more hostiles from the farmhouse`, 'red'); SFX.sting();
+  if (w.boss) { spawnFarmer({ tool: w.boss.tool, look: w.boss.look, foreman: true, alert: true, name: w.boss.name }); notify(w.boss.title, w.boss.sub); SFX.sting(); return; }
+  notify(w.title || 'Reinforcements inbound', w.note || `${(w.f || 0) + (w.d || 0)} more hostiles ${L.waveFrom || 'from the farmhouse'}`, 'red'); SFX.sting();
 }
 function applyPower(pk) {
   const pw = POWER[pk.type]; SFX.power(); G.stats.power++; sparkle(pk.x, groundH(pk.x, pk.z) + 1.3, pk.z, pw.color, 22);
   switch (pk.type) {
-    case 'golden': P.carry = Math.min(P.cap + 3, P.carry + 3); break;
+    case 'golden': case 'roast': P.carry = Math.min(P.cap + 3, P.carry + 3); break;
     case 'melon': P.hp = 100; break;
     case 'pepper': P.pepper = POWER.pepper.dur; P.stamina = 100; break;
     case 'camo': P.camo = POWER.camo.dur; break;
@@ -531,13 +639,17 @@ function updatePlayer(dt) {
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = -fz, rz = fx;
   const gh = groundH(P.x, P.z); P.inWater = gh < -0.2; P.deep = gh < -1.1; P.zone = waterDist(P.x, P.z) < ZONE_D;
+  P.indoor = HOUSES.length ? indoorOf(P.x, P.z) : null; P.lit = !!(L.town && L.sky.night && LAMPS.some(l => (l.x - P.x) ** 2 + (l.z - P.z) ** 2 < 42));
+  if (P.indoor && !G.hints.indoor) { G.hints.indoor = 1; hint('Inside a house the walls hide you, and you heal faster. Wait for the police to lose your trail.', 7); }
+  if (P.lit && !G.hints.lit) { G.hints.lit = 1; hint('Street lamps light you up. Keep to the shadows between them.', 5); }
   let base = P.sneak ? 3.4 : 6.2; if (P.deep) base = P.sneak ? 5.0 : 8.4; else if (P.inWater) base = 6.8;
+  if (P.netT > 0) { P.netT = Math.max(0, P.netT - dt); base *= 0.3; }
   const moving = il > 0.1;
   // burst sprint: a short charge that drains fast and recharges after a brief rest; fully draining it leaves you winded until 35%
   const wasSprint = P.sprinting; P.sprinting = false;
   if (P.winded && P.stamina >= 35) P.winded = false;
   if (act('burst') && P.sneak && moving && iz > 0 && !P.winded) P.sneak = false;
-  if (act('burst') && moving && iz > 0 && !P.sneak && !P.winded && (P.stamina > 0 || P.pepper > 0)) {
+  if (act('burst') && moving && iz > 0 && !P.sneak && !P.winded && !(P.netT > 0) && (P.stamina > 0 || P.pepper > 0)) {
     base *= P.deep ? 1.45 : 2.05; P.sprinting = true; P.stamT = 0;
     if (!P.pepper) { P.stamina = Math.max(0, P.stamina - 30 * dt); if (P.stamina <= 0) { P.winded = true; SFX.winded && SFX.winded(); } }
     if (!wasSprint) { SFX.burst && SFX.burst(); G.shake = Math.max(G.shake, 0.25); }
@@ -548,7 +660,7 @@ function updatePlayer(dt) {
   let mx = P.vx, mz = P.vz; if (P.lunge > 0) { P.lunge -= dt; mx += P.lungeDir.x * 14; mz += P.lungeDir.z * 14; }
   P.x += mx * dt; P.z += mz * dt; COL.resolve(P, 0.95);
   const spd = Math.hypot(P.vx, P.vz);
-  if (P.lastHit > 4 && P.hp < 100) P.hp = Math.min(100, P.hp + D.regen * dt);
+  if (P.lastHit > 4 && P.hp < 100) P.hp = Math.min(100, P.hp + D.regen * dt * (P.indoor ? 2 : 1));
   // eye height
   let eye = gh + 1.55; if (P.inWater) eye = Math.max(gh + 1.55, (P.sneak && P.deep ? 0.2 : 0.46) + Math.sin(G.rt * 1.7) * 0.04);
   P.y = lerp(P.y, eye, 1 - Math.exp(-9 * dt));
@@ -565,8 +677,8 @@ function updatePlayer(dt) {
   if (P.canFeed && act('feed') && P.carry > 0) { P.feedT += dt; if (P.feedT >= 0.36) { P.feedT = 0; feedOne(); } } else P.feedT = 0;
   // pickups
   if (P.carry < P.cap) for (const b of bunches) if (b.m.parent && Math.hypot(b.x - P.x, b.z - P.z) < 2.4) {
-    worldRoot.remove(b.m); b.tree.bunch = null; b.dead = true; P.carry++; G.stats.bananas++; SFX.pickup(); sparkle(b.x, b.y, b.z); xp('+10', 'BANANA'); G.score += 10;
-    if (P.carry >= P.cap) { hint(`Mouth full. Take the bananas to the leopard.`, 4); }
+    worldRoot.remove(b.m); b.tree.bunch = null; b.dead = true; P.carry++; G.stats.bananas++; SFX.pickup(); sparkle(b.x, b.y, b.z); xp('+10', food().xp); G.score += 10;
+    if (P.carry >= P.cap) { hint(`Mouth full. Take the ${food().many} to the leopard.`, 4); }
     else if (!G.hints.first) { G.hints.first = 1; hint('Follow the diamond marker to the leopard.', 5); }
     if (P.carry >= P.cap) break;
   }
@@ -636,7 +748,7 @@ function snapFree() {
     SFX.snap(leo);
     rig.links.forEach(l => { PT.spawn({ x: l.position.x, y: l.position.y, z: l.position.z, vx: rand(-5, 5), vy: rand(3, 8), vz: rand(-5, 5), s: 0.09, c: 0x8e9398, life: 1.6, g: -14 }); l.visible = false; });
     leo.m.ring.visible = false;
-  } else if (rig.type === 'truck') {
+  } else if (rig.type === 'truck' || rig.type === 'train') {
     SFX.metal(leo); SFX.crash(leo);
     rig.bars.forEach(b => { if (b.userData.side) { b.rotation.z = -b.userData.side * rand(0.2, 0.45); b.rotation.x = rand(-0.2, 0.2); } });
     c.door = { v: new THREE.Vector3(-4, 5, 7), spin: 6 };
@@ -681,6 +793,14 @@ function updateCine(rdt) {
     }
     return;
   }
+  if (c.type === 'depart') {
+    const x = 0.45 * t * t; rig.g.position.x = x;
+    if (Math.random() < 0.7) PT.spawn({ x: rig.stack.x + x + rand(-0.3, 0.3), y: rig.stack.y, z: rig.stack.z + rand(-0.3, 0.3), vx: rand(-0.5, 0.5) - Math.min(4, t), vy: rand(2.5, 4), vz: rand(-0.5, 0.5), s: rand(0.6, 1.1), c: pick([0xb8b8c0, 0x9a9aa4, 0xd0d0d8]), life: rand(2.5, 3.5), g: 0.2, grow: 4, drag: 0.3, op: 0.5 });
+    camera.position.set(rig.x - 4, rig.y + 3.2, rig.z + 15); camera.lookAt(rig.x + x * 0.7, rig.y + 2, rig.z);
+    if (t > 2.2 && !c.w2) { c.w2 = 1; SFX.trainWhistle(); }
+    if (t > 5.5 && !c.done) { c.done = true; endMission(false); }
+    return;
+  }
   if (c.type === 'win') {
     const hb = HIPPO, sp = 2.2 * t; const dir = c.dir;
     const hx = c.x + dir.x * sp, hz = c.z + dir.z * sp;
@@ -705,6 +825,11 @@ function updateCine(rdt) {
     if (t > 3.6 && !c.done) { c.done = true; endMission(false); }
   }
 }
+function startDepart() {
+  P.alive = false; P.invuln = 99; G.phase = 'done'; G.failReason = 'The circus train pulled out of Millbrook Junction with the leopard still in his cage.';
+  G.cine = { type: 'depart', t: 0, slow: 1 }; SFX.trainWhistle(); notify('The train is leaving', 'The leopard is still on board', 'red');
+  $('lb-top').classList.add('on'); $('lb-bot').classList.add('on'); $('hud').classList.add('off');
+}
 function startWin() {
   P.invuln = 99; G.phase = 'done'; SFX.win();
   const w = L.water[L.exfil.river !== undefined ? L.exfil.river : L.exfil.pond]; let dir;
@@ -725,8 +850,8 @@ function endMission(win) {
   }
   $('end-eye').textContent = `${L.op} · ${L.place}`;
   const h = $('end-title'); h.textContent = win ? 'Mission complete' : 'Mission failed'; h.className = win ? 'win' : 'fail';
-  $('end-quote').textContent = win ? (G.li < LEVELS.length - 1 ? 'The leopard is free and the river carried you both out of the valley. Command has another job for you.' : 'Three captives freed, one valley in uproar, and not one farmer willing to go near the water again.') : `"${pick(DEATH_QUOTES)}"`;
-  $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, 'FARMERS EATEN'], [st.fed, 'BANANAS FED'], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+  $('end-quote').textContent = win ? (G.li < LEVELS.length - 1 ? 'The leopard is free and the river carried you both out of the valley. Command has another job for you.' : 'The circus train left without its star. The leopard is free for good, and nobody in Millbrook Junction will go near the river again.') : G.failReason || `"${pick(L.quotes || DEATH_QUOTES)}"`;
+  $('end-stats').innerHTML = [[G.score, 'SCORE'], [`${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, 'TIME'], [st.eaten, L.town ? 'OFFICERS EATEN' : 'FARMERS EATEN'], [st.fed, food().fed], [st.ko, 'KNOCKED OUT'], [st.dogs, 'DOGS SCARED'], [st.spotted, 'TIMES SPOTTED'], L.civilians ? [st.civs, 'VILLAGERS EATEN'] : [st.power, 'POWER-UPS']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('b-next').hidden = !(win && G.li < LEVELS.length - 1);
   $('b-retry').textContent = win ? 'Replay' : 'Retry';
   $('end').hidden = false; refreshMissionList();

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1
+
+- New fourth mission, Last Stop: the leopard is caged on a circus train at the Millbrook Junction station, and the train leaves when the departure clock runs out.
+- A night-time village with streets, a market square, a church, a police station and houses you can walk into and hide in. Street lamps light you up.
+- New enemies: village constables with batons and whistles, police dogs, sergeants with net guns that tangle you at range, and the ringmaster with a long whip.
+- Villagers walk the streets. They scream for the police when they see you, and you can eat them anywhere for health.
+- The leopard eats meat in this mission: steal hams and sausages from the market stalls, the butcher and the sausage carts.
+- New power-up for the village: Smoked Ham, worth three cuts of meat.
+
 ## 2.0
 
 A full rewrite: Hippo Heist is now a 3D first-person stealth game.

@@ -33,15 +33,17 @@ function hudReset() { for (const k in HUDC) delete HUDC[k]; $('killfeed').innerH
 function updateHUD() {
   setText('score', String(G.score));
   const full = P.carry >= P.cap; setHTML('bcnt', `${P.carry}<small> / ${P.cap}</small>`); $('bcnt').classList.toggle('full', full);
-  setText('o1s', P.carry ? `${P.carry} carried${full ? ' · mouth full' : ''}` : `${bunches.length} bunches on the trees`);
+  setText('o1t', food().gather); setText('blbl', food().label);
+  setText('o1s', P.carry ? `${P.carry} carried${full ? ' · mouth full' : ''}` : `${bunches.length} ${food().where}`);
   $('strbar').style.width = G.strength + '%';
-  setText('o2s', `Strength ${Math.round(G.strength)}% · ${Math.max(0, Math.ceil((100 - G.strength) / (100 / L.need) - 1e-6))} more bananas`);
+  setText('o2s', `Strength ${Math.round(G.strength)}% · ${Math.max(0, Math.ceil((100 - G.strength) / (100 / L.need) - 1e-6))} more ${food().many}`);
   const freed = G.phase !== 'gather';
   $('o1').className = 'orow ' + (freed ? 'done' : 'active'); $('o2').className = 'orow ' + (freed ? 'done' : 'active'); $('o3').className = 'orow ' + (G.phase === 'done' ? 'done' : freed ? 'active' : '');
   setText('o3s', freed ? `${Math.round(Math.hypot(exfil.x - P.x, exfil.z - P.z))}m · green smoke` : 'Locked until the leopard is free');
   setText('o2t', freed ? 'Leopard freed' : rig.type === 'hang' ? 'Toss bananas to the leopard' : 'Feed the leopard');
-  const st = !P.alive ? 'DOWN' : P.deep ? (P.sneak ? 'SUBMERGED' : 'SWIMMING') : P.inWater ? 'WADING' : P.sneak ? 'SNEAKING' : P.sprinting ? 'BURST' : P.winded ? 'WINDED' : 'STANDING';
-  setText('stance', st + (P.camo > 0 ? ' · CAMO' : ''));
+  if (L.depart) { const urgent = G.phase === 'gather' && G.clock < 60, m = Math.max(0, Math.ceil(G.clock)); setText('mission', G.phase === 'gather' ? `${L.op} · TRAIN DEPARTS ${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}` : `${L.op} · ${L.clock}`); $('mission').classList.toggle('urgent', urgent); $('mission').classList.add('clock'); } else $('mission').classList.remove('clock', 'urgent');
+  const st = !P.alive ? 'DOWN' : P.netT > 0 ? 'NETTED' : P.deep ? (P.sneak ? 'SUBMERGED' : 'SWIMMING') : P.inWater ? 'WADING' : P.sneak ? 'SNEAKING' : P.sprinting ? 'BURST' : P.winded ? 'WINDED' : 'STANDING';
+  setText('stance', st + (P.camo > 0 ? ' · CAMO' : '') + (P.indoor && !farmers.some(f => f.active && f.seen) ? ' · HIDDEN' : '') + (P.lit ? ' · LIT' : ''));
   $('hpb').querySelector('i').style.width = Math.max(0, P.hp) + '%'; $('arb').querySelector('i').style.width = P.armor + '%'; $('arb').style.display = P.armor > 0 ? '' : 'none';
   $('stb').querySelector('i').style.width = P.stamina + '%'; $('stb').querySelector('i').style.background = P.pepper > 0 ? '#ff6a4e' : P.winded ? '#c8503a' : P.sprinting ? '#f2d16b' : ''; $('stb').classList.toggle('winded', !!P.winded);
   const eq = [`<div class="eq"><span class="k">${kn('bellow')}</span>BELLOW${P.bellowCool > 0 ? ` ${Math.ceil(P.bellowCool)}` : ''}<i class="cd" style="width:${(1 - P.bellowCool / 10) * 100}%"></i></div>`];
@@ -50,7 +52,7 @@ function updateHUD() {
   const zone = (P.zone || P.frenzy > 0) && P.alive; $('zone').style.display = zone ? 'block' : 'none'; $('zone').classList.toggle('frenzy', !P.zone && P.frenzy > 0);
   if (!P.zone && P.frenzy > 0) setText('zone', 'FEEDING FRENZY · BITES ARE LETHAL'); else if (P.zone) setText('zone', L.water.some(w => w.type === 'river') && waterDistType() === 'river' ? 'RIVER ADVANTAGE · BITES ARE LETHAL' : 'WATER ADVANTAGE · BITES ARE LETHAL');
   let pr = '';
-  if (P.canFeed && leo.state === 'captive') pr = P.carry > 0 ? `Hold <span class="key">${kn('feed')}</span> to ${rig.type === 'hang' ? 'toss' : 'feed'} bananas` : 'Leopard is hungry. Find bananas';
+  if (P.canFeed && leo.state === 'captive') pr = P.carry > 0 ? `Hold <span class="key">${kn('feed')}</span> to ${rig.type === 'hang' ? 'toss' : 'feed'} ${food().many}` : `Leopard is hungry. Find ${food().many}`;
   setHTML('prompt', pr); $('prompt').style.display = pr ? 'block' : 'none';
   const tint = $('fx-tint');
   if (P.camo > 0) { tint.style.background = 'radial-gradient(ellipse at center,transparent 50%,rgba(70,52,30,.55))'; tint.style.opacity = 1; }
@@ -71,6 +73,7 @@ function drawMap(ctx, size, opts = {}) {
     if (h < -0.2) c = h < -1.1 ? '#1f5d74' : '#2e7489';
     else if (wd < ZONE_D) c = '#3c5b4c';
     else if (inField(cx, cz)) c = ((Math.floor(cx / 6.2) + Math.floor(cz / 6.2)) & 1) ? '#405a2a' : '#3a5326';
+    else if (onStreet(cx, cz)) c = '#5e5c55';
     else c = '#4a5536';
     ctx.fillStyle = c; ctx.fillRect((x + WORLD) * k, (z + WORLD) * k, step * k + 0.6, step * k + 0.6);
   }
@@ -85,7 +88,7 @@ function drawMap(ctx, size, opts = {}) {
     ctx.strokeStyle = '#93e06c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(exfil.x), px(exfil.z), size / 40, 0, TAU); ctx.stroke(); ctx.fillStyle = '#93e06c'; ctx.fillText('EXFIL', px(exfil.x), px(exfil.z) - size / 28);
     ctx.fillStyle = '#8fd4ff'; ctx.beginPath(); ctx.arc(px(st.x), px(st.z), size / 70, 0, TAU); ctx.fill(); ctx.fillText('INSERTION', px(st.x), px(st.z) + size / 22);
     ctx.fillStyle = 'rgba(232,235,226,.75)'; ctx.font = `600 ${Math.round(size / 44)}px ${FONT}`;
-    for (const p of L.props) if (['farmhouse', 'barn', 'packing', 'sawmill', 'silo', 'watertower'].includes(p.t)) ctx.fillText(p.t === 'packing' ? 'PACKING HOUSE' : p.t.toUpperCase(), px(p.x), px(p.z) + 4);
+    for (const p of L.props) if (p.label || ['farmhouse', 'barn', 'packing', 'sawmill', 'silo', 'watertower'].includes(p.t)) ctx.fillText(p.label || (p.t === 'packing' ? 'PACKING HOUSE' : p.t.toUpperCase()), px(p.x), px(p.z) + 4);
     ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; for (let g = 0; g <= 10; g++) { ctx.beginPath(); ctx.moveTo(g * size / 10, 0); ctx.lineTo(g * size / 10, size); ctx.moveTo(0, g * size / 10); ctx.lineTo(size, g * size / 10); ctx.stroke(); }
     ctx.fillStyle = 'rgba(232,235,226,.5)'; ctx.font = `500 ${Math.round(size / 50)}px ${MONO}`; ctx.textAlign = 'left'; ctx.fillText('N ↑', 8, 18); ctx.fillText('GRID 23m', 8, size - 10);
   }
@@ -130,11 +133,12 @@ function drawOverlay(rdt) {
   c.globalAlpha = 0.92; c.drawImage(MM.cv, (-WORLD - P.x) * k, (-WORLD - P.z) * k, 2 * WORLD * k, 2 * WORLD * k); c.globalAlpha = 1;
   const W2 = (x, z) => [(x - P.x) * k, (z - P.z) * k];
   if (G.bellowRing > 0) { c.strokeStyle = `rgba(255,255,255,${G.bellowRing})`; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, (1 - G.bellowRing) * 45 * k, 0, TAU); c.stroke(); }
-  c.fillStyle = '#ffd23f'; for (const b of bunches) { const [x, z] = W2(b.x, b.z); if (x * x + z * z < ms * ms) { c.beginPath(); c.arc(x, z, 2, 0, TAU); c.fill(); } }
+  c.fillStyle = food().css; for (const b of bunches) { const [x, z] = W2(b.x, b.z); if (x * x + z * z < ms * ms) { c.beginPath(); c.arc(x, z, 2, 0, TAU); c.fill(); } }
   for (const pk of pickups) if (pk.active) { const [x, z] = W2(pk.x, pk.z); c.fillStyle = POWER[pk.type].css; c.save(); c.translate(x, z); c.rotate(hd + Math.PI / 4); c.fillRect(-3.5, -3.5, 7, 7); c.restore(); }
   { const [x, z] = W2(leo.x, leo.z); c.save(); c.translate(x, z); c.rotate(hd); star(c, 0, 0, 7, G.phase === 'gather' ? '#ffd23f' : '#ffb03f'); c.restore(); }
   if (G.phase !== 'gather') { const [x, z] = W2(exfil.x, exfil.z); c.strokeStyle = '#93e06c'; c.lineWidth = 2.5; c.beginPath(); c.arc(x, z, 7, 0, TAU); c.stroke(); }
   for (const f of farmers) { if (!f.active) continue; const vis = P.recon > 0 || f.state === 'chase' || Math.hypot(f.x - P.x, f.z - P.z) < 15; if (!vis) continue; const [x, z] = W2(f.x, f.z); c.save(); c.translate(x, z); c.rotate(-f.yaw + Math.PI); c.fillStyle = f.state === 'chase' ? '#ee4a2f' : f.aware > 0.4 ? '#f3a632' : '#d9d2c8'; c.beginPath(); c.moveTo(0, -5); c.lineTo(4, 4); c.lineTo(-4, 4); c.closePath(); c.fill(); if (f.foreman) { c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke(); } c.restore(); }
+  for (const v of civs) { if (!v.active || Math.hypot(v.x - P.x, v.z - P.z) > 25) continue; const [x, z] = W2(v.x, v.z); c.fillStyle = v.state === 'flee' ? '#ff9ab0' : 'rgba(232,235,226,.6)'; c.beginPath(); c.arc(x, z, 2.2, 0, TAU); c.fill(); }
   for (const d of dogs) { if (!d.active) continue; const vis = P.recon > 0 || d.state === 'chase' || Math.hypot(d.x - P.x, d.z - P.z) < 15; if (!vis) continue; const [x, z] = W2(d.x, d.z); c.fillStyle = d.state === 'chase' ? '#ee4a2f' : '#c8a27a'; c.beginPath(); c.arc(x, z, 3, 0, TAU); c.fill(); }
   c.restore();
   c.save(); c.translate(mx + ms / 2, my + ms / 2); c.fillStyle = '#8fd4ff'; c.beginPath(); c.moveTo(0, -7); c.lineTo(5, 6); c.lineTo(0, 3); c.lineTo(-5, 6); c.closePath(); c.fill();
@@ -180,6 +184,7 @@ function drawOverlay(rdt) {
   c.beginPath(); c.moveTo(X - spread - 8, Y); c.lineTo(X - spread, Y); c.moveTo(X + spread, Y); c.lineTo(X + spread + 8, Y); c.moveTo(X, Y + spread); c.lineTo(X, Y + spread + 8); c.stroke();
   c.fillStyle = (P.zone || P.frenzy > 0) ? '#5fd0e0' : '#fff'; c.beginPath(); c.arc(X, Y, 1.8, 0, TAU); c.fill(); c.shadowBlur = 0;
   if (G.hitT > 0) { const s = 8 + (0.28 - G.hitT) * 20; c.strokeStyle = G.hitKill ? '#ee4a2f' : '#fff'; c.lineWidth = 2.5; c.beginPath(); for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.moveTo(X + dx * s, Y + dy * s); c.lineTo(X + dx * (s + 9), Y + dy * (s + 9)); } c.stroke(); }
+  if (P.netT > 0) { c.strokeStyle = `rgba(216,208,176,${Math.min(0.55, P.netT * 0.3)})`; c.lineWidth = 2.5; c.beginPath(); for (let i = -OH; i < OW; i += 46) { c.moveTo(i, 0); c.lineTo(i + OH, OH); c.moveTo(i + OH, 0); c.lineTo(i, OH); } c.stroke(); }
   // feed progress ring
   if (P.feedT > 0) { c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.arc(X, Y, 22, -Math.PI / 2, -Math.PI / 2 + TAU * (P.feedT / 0.36)); c.stroke(); }
 }
@@ -216,11 +221,14 @@ function updateWorld(dt, live) {
   G.t += live ? dt : 0;
   for (const f of farmers) f.update(dt);
   for (const d of dogs) d.update(dt);
-  farmers = farmers.filter(f => !f.removed); dogs = dogs.filter(d => !d.removed);
+  for (const v of civs) v.update(dt);
+  farmers = farmers.filter(f => !f.removed); dogs = dogs.filter(d => !d.removed); civs = civs.filter(v => !v.removed);
+  updateNets(dt);
   for (let i = 0; i < farmers.length; i++) for (let j = i + 1; j < farmers.length; j++) {
     const a = farmers[i], b = farmers[j]; if (!a.active || !b.active) continue; const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), m = a.r + b.r;
     if (d < m && d > 0.001) { const p = (m - d) / 2; a.x -= dx / d * p; a.z -= dz / d * p; b.x += dx / d * p; b.z += dz / d * p; }
   }
+  if (P.alive) for (const f of civs) if (f.active) { const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz), m = f.r + 0.95; if (d < m && d > 0.001) { f.x += dx / d * (m - d); f.z += dz / d * (m - d); } }
   if (P.alive) for (const f of farmers) if (f.active) { const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz), m = f.r + 0.95; if (d < m && d > 0.001) { f.x += dx / d * (m - d); f.z += dz / d * (m - d); } }
   updateLeopard(dt);
   const t = G.rt;
@@ -236,6 +244,13 @@ function updateWorld(dt, live) {
   }
   if (!live) return;
   G.bunchT -= dt; if (G.bunchT <= 0) { G.bunchT = 5; if (bunches.length < 22) spawnBunch(); }
+  if (rig.stack && Math.random() < dt * 3) PT.spawn({ x: rig.stack.x + rig.g.position.x, y: rig.stack.y, z: rig.stack.z, vx: rand(-0.4, 0.4), vy: rand(1.5, 2.6), vz: rand(-0.4, 0.4), s: rand(0.4, 0.7), c: pick([0x9a9aa4, 0xb8b8c0]), life: rand(2.5, 3.5), g: 0.15, grow: 3.5, drag: 0.3, op: 0.35 });
+  if (L.civilians) { G.civT -= dt; if (G.civT <= 0) { G.civT = 20; if (civs.length < L.civilians) spawnCiv(); } }
+  if (L.depart && G.phase === 'gather') {
+    G.clock -= dt;
+    [[300, '5 minutes'], [120, '2 minutes'], [60, '1 minute'], [30, '30 seconds']].forEach(([sec, msg], i) => { if (G.clock <= sec && !(G.clockWarn & (1 << i))) { G.clockWarn |= 1 << i; notify(`Train departs in ${msg}`, 'Feed the leopard before it leaves', 'red'); SFX.trainWhistle(); } });
+    if (G.clock <= 0 && leo.state === 'captive' && P.alive) startDepart();
+  }
   G.spawnT -= dt; const base = Math.max(3, L.enemies.farmers + DIFF[G.diff].extra);
   if (G.spawnT <= 0) { G.spawnT = 28; if (farmers.filter(f => f.active).length < Math.ceil(base * 0.6)) spawnFarmer(); }
   G.dmgArcs.forEach(a => a.t -= dt); G.dmgArcs = G.dmgArcs.filter(a => a.t > 0);
@@ -281,6 +296,8 @@ function updateLights(rdt) {
     const lit = farmers.filter(f => f.active && f.m.lantern).map(f => [f, Math.hypot(f.x - cp.x, f.z - cp.z)]).sort((a, b) => a[1] - b[1]);
     LANTERNS.forEach((l, i) => { const e = lit[i]; if (e && e[1] < 70) { e[0].m.lantern.getWorldPosition(l.position); l.intensity = 2.2 + Math.sin(G.rt * 13 + i) * 0.25 + Math.sin(G.rt * 7.3 + i * 2) * 0.2; } else l.intensity = 0; });
   } else LANTERNS.forEach(l => l.intensity = 0);
+  const lamps = L.town && L.sky.night ? LAMPS.map(l => [l, (l.x - cp.x) ** 2 + (l.z - cp.z) ** 2]).sort((a, b) => a[1] - b[1]) : [];
+  LAMPLIGHTS.forEach((l, i) => { const e = lamps[i]; if (e && e[1] < 3600) { l.position.set(e[0].x, e[0].y, e[0].z); l.intensity = 1.7; } else l.intensity = 0; });
   // lightning
   if (L.sky.rain) {
     G.lightT -= rdt;
@@ -336,7 +353,8 @@ function openBrief() {
   $('br-eye').textContent = `MISSION 0${L.id} · ${L.clock} · ${DIFF[G.diff].label.toUpperCase()}`;
   $('br-title').textContent = L.op;
   $('br-text').innerHTML = `<h3>${L.place}</h3>` + L.brief.map(p => `<p>${p}</p>`).join('');
-  $('br-intel').innerHTML = L.intel.map(([a, b]) => `<div><b>${a.toUpperCase()}</b><span>${b}</span></div>`).join('') ;
+  const dep = Math.round((L.depart || 0) * DIFF[G.diff].time);
+  $('br-intel').innerHTML = L.intel.map(([a, b]) => `<div><b>${a.toUpperCase()}</b><span>${b.replace('{depart}', `${Math.floor(dep / 60)}:${String(dep % 60).padStart(2, '0')}`)}</span></div>`).join('') ;
   const cv = $('mapcv'); drawMap(cv.getContext('2d'), cv.width, { brief: true });
 }
 function deploy() {
@@ -452,6 +470,6 @@ function tick(rdt, render) {
 function boot() {
   resizeAll(); bindUI(); loadLevel(0); showScreen('menu');
   requestAnimationFrame(frame);
-  window.__hh = { G, P, LEVELS, VM, HIPPO, scene, camera, worldRoot, vmScene, vmCam, PT, get farmers() { return farmers; }, get dogs() { return dogs; }, get leo() { return leo; }, get rig() { return rig; }, startMission, loadLevel, feedOne, step: (n, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, false); }, damagePlayer, applyPower, get pickups() { return pickups; }, get bunches() { return bunches; }, startWin, bellow, eat, bite, startBreak, waterPoint, groundH, waterDist, exfil: () => exfil, keys, BIND, act };
+  window.__hh = { G, P, LEVELS, VM, HIPPO, scene, camera, worldRoot, vmScene, vmCam, PT, get farmers() { return farmers; }, get dogs() { return dogs; }, get civs() { return civs; }, get nets() { return nets; }, get leo() { return leo; }, get rig() { return rig; }, startMission, loadLevel, feedOne, step: (n, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, false); }, damagePlayer, applyPower, get pickups() { return pickups; }, get bunches() { return bunches; }, startWin, bellow, eat, bite, startBreak, waterPoint, groundH, waterDist, exfil: () => exfil, keys, BIND, act };
 }
 boot();

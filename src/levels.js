@@ -1,18 +1,27 @@
 // ================= LEVELS, DIFFICULTY, POWER-UPS =================
 const WORLD = 115;
 const DIFF = {
-  recruit: { dmg: 0.45, detect: 0.65, extra: -1, regen: 16, label: 'Recruit', note: 'Farmers are slow to notice you and hit softly.' },
-  regular: { dmg: 0.8, detect: 1.0, extra: 0, regen: 12, label: 'Regular', note: 'A fair fight. Farmers react quickly once they spot you.' },
-  hardened: { dmg: 1.1, detect: 1.3, extra: 2, regen: 9, label: 'Hardened', note: 'More farmers, sharper eyes, heavier swings.' },
-  veteran: { dmg: 1.55, detect: 1.65, extra: 4, regen: 6, label: 'Veteran', note: 'The whole valley is armed and awake. Use the water.' }
+  recruit: { dmg: 0.45, detect: 0.65, extra: -1, regen: 16, time: 1.3, label: 'Recruit', note: 'Farmers are slow to notice you and hit softly.' },
+  regular: { dmg: 0.8, detect: 1.0, extra: 0, regen: 12, time: 1, label: 'Regular', note: 'A fair fight. Farmers react quickly once they spot you.' },
+  hardened: { dmg: 1.1, detect: 1.3, extra: 2, regen: 9, time: 0.9, label: 'Hardened', note: 'More farmers, sharper eyes, heavier swings.' },
+  veteran: { dmg: 1.55, detect: 1.65, extra: 4, regen: 6, time: 0.8, label: 'Veteran', note: 'The whole valley is armed and awake. Use the water.' }
 };
 const TOOLS = {
   hatchet: { dmg: 17, reach: 2.4, wind: 0.36, cool: 1.0, speed: 1, name: 'HATCHET' },
   machete: { dmg: 14, reach: 2.5, wind: 0.28, cool: 0.85, speed: 1.04, name: 'MACHETE' },
   pitchfork: { dmg: 13, reach: 3.1, wind: 0.42, cool: 1.15, speed: 0.97, name: 'PITCHFORK' },
   shovel: { dmg: 12, reach: 2.7, wind: 0.45, cool: 1.15, speed: 1, knock: 7, name: 'SHOVEL' },
-  chainsaw: { dmg: 7, reach: 2.6, wind: 0.12, cool: 0.22, speed: 0.82, name: 'CHAINSAW' }
+  chainsaw: { dmg: 7, reach: 2.6, wind: 0.12, cool: 0.22, speed: 0.82, name: 'CHAINSAW' },
+  baton: { dmg: 9, reach: 2.2, wind: 0.22, cool: 0.7, speed: 1.08, knock: 3, name: 'BATON' },
+  netgun: { dmg: 8, reach: 2.2, wind: 0.3, cool: 1.0, speed: 0.95, ranged: true, name: 'NET GUN' },
+  whip: { dmg: 15, reach: 4.4, wind: 0.4, cool: 1.1, speed: 1.0, knock: 4, name: 'WHIP' }
 };
+// what the hippo carries to the leopard on each mission
+const FOODS = {
+  banana: { one: 'banana', many: 'bananas', where: 'bunches on the trees', gather: 'Gather bananas', label: 'BANANAS', xp: 'BANANA', fed: 'BANANAS FED', css: '#ffd23f' },
+  meat: { one: 'cut of meat', many: 'cuts of meat', where: 'cuts on the market stalls', gather: 'Steal meat', label: 'MEAT', xp: 'MEAT', fed: 'CUTS FED', css: '#f08a6c' }
+};
+const food = () => FOODS[L.food || 'banana'];
 const POWER = {
   golden: { name: 'GOLDEN BANANA', short: 'GOLD', color: 0xffc81e, css: '#ffc81e', desc: 'Counts as three bananas' },
   melon: { name: 'WATERMELON', short: 'MELON', color: 0x5fcf4f, css: '#7ee06a', desc: 'Restores full health' },
@@ -20,6 +29,7 @@ const POWER = {
   camo: { name: 'MUD CAMO', short: 'CAMO', color: 0x9b7448, css: '#c79a66', desc: 'Farmers struggle to see you', dur: 25 },
   hide: { name: 'THICK HIDE', short: 'HIDE', color: 0xb8c2cc, css: '#c9d3dc', desc: 'Armor that absorbs damage' },
   parrot: { name: 'RECON PARROT', short: 'RECON', color: 0x35d7e8, css: '#5fe3f0', desc: 'Every farmer shows on your map', dur: 30 },
+  roast: { name: 'SMOKED HAM', short: 'HAM', color: 0xc8643a, css: '#e8875a', desc: 'Counts as three cuts of meat' },
   frenzy: { name: 'FEEDING FRENZY', short: 'FRENZY', color: 0xb44dff, css: '#c98bff', desc: 'Your bite is lethal anywhere', dur: 15 }
 };
 const LEVELS = [
@@ -100,9 +110,72 @@ const LEVELS = [
     waves: [{ at: 25, f: 2, d: 1 }, { at: 50, f: 1, foreman: true }, { at: 80, f: 3 }],
     need: 20, cap: 5, power: ['golden', 'melon', 'pepper', 'camo', 'hide', 'parrot', 'frenzy'],
     insertion: ['OPERATION BLACK RAIN', 'DAY 3 · 23:10:04', 'Monsoon Ridge Sawmill', 'Callsign: MUDSLIDE']
+  },
+  {
+    id: 4, op: 'LAST STOP', place: 'Millbrook Junction', clock: 'DAY 4 · 20:05', seed: 41, town: true, food: 'meat',
+    captiveLine: 'Caged on a circus train at the village station',
+    brief: [
+      'The farmers sold the leopard to a travelling circus. He is caged on a flatcar of the circus train, stopped at Millbrook Junction to take on coal and water. When it pulls out, he is gone for good.',
+      'Leopards do not eat bananas. Steal hams and sausages from the market stalls, the butcher and the sausage carts, and feed him through the bars until he can rip the door off. The mission clock shows how long until the train leaves.',
+      'This is a village, not a farm. Villagers scream for the police when they see you, but you can eat them anywhere for health. Constables patrol the streets with batons and whistles and bring two police dogs. Sergeants with net guns join at half strength and the ringmaster comes for his star act at three quarters.',
+      'Every house has an open door. Slip inside to break line of sight and lose your pursuers. Street lamps light you up, so keep to the shadows. The river on the west side runs under the railway bridge to the exfil point.'
+    ],
+    intel: [['Captive', 'Cage on a circus train'], ['Hostiles', 'Police, K9 dogs, the ringmaster'], ['Deadline', 'Train departs in {depart}']],
+    sky: { top: 0x121a30, hor: 0x5a4660, sun: [-0.45, 0.42, 0.55], sunCol: 0xb4c0e8, sunInt: 0.6, hemiSky: 0x6c7cac, hemiGround: 0x2a2420, hemiInt: 0.58, fog: 0x2c2a3c, fogD: 0.0105, cloud: 0.48, cloudCol: 0x403c58, night: 1, rain: 0, gain: [1.0, 0.98, 1.06], lift: [0.022, 0.02, 0.04], expo: 1.28, grass: [0x3f4a2c, 0x525a34], mud: 0x3d3326 },
+    water: [{ type: 'river', axis: 'z', base: -88, a1: 3, f1: 0.03, p1: 0, a2: 1.5, f2: 0.08, p2: 1 }, { type: 'pond', x: 88, z: 60, r: 24 }],
+    base: 1.2, hill: 0.6,
+    fields: [],
+    streets: [
+      { x0: -64, x1: 60, z0: -6, z1: 6 }, { x0: -64, x1: 60, z0: 44, z1: 54 }, { x0: -38, x1: -30, z0: -56, z1: 54 }, { x0: 6, x1: 16, z0: -70, z1: 54 },
+      { x0: 44, x1: 52, z0: -56, z1: 54 }, { x0: -64, x1: 60, z0: -56, z1: -50 }, { x0: -10, x1: 32, z0: 6, z1: 44 },
+      { x0: -32, x1: 44, z0: -76, z1: -70, k: 'stone' }, { x0: -66, x1: 115, z0: -84, z1: -76, k: 'gravel' }
+    ],
+    captive: { type: 'train', x: 8, z: -80 },
+    props: [
+      { t: 'house', x: -57, z: 11, ry: Math.PI }, { t: 'house', x: -44, z: 11, ry: Math.PI }, { t: 'house', x: -20, z: 11, ry: Math.PI },
+      { t: 'house', x: -57, z: 39, ry: 0 }, { t: 'house', x: -44, z: 39, ry: 0 }, { t: 'house', x: -20, z: 39, ry: 0 }, { t: 'house', x: -25, z: 25, ry: -Math.PI / 2 },
+      { t: 'house', x: -57, z: -11, ry: 0 }, { t: 'house', x: -44, z: -11, ry: 0 }, { t: 'house', x: -20, z: -11, ry: 0 }, { t: 'house', x: -1, z: -11, ry: 0 },
+      { t: 'house', x: 23, z: -11, ry: 0 }, { t: 'house', x: 37, z: -11, ry: 0 },
+      { t: 'house', x: -57, z: -45, ry: Math.PI }, { t: 'house', x: -44, z: -45, ry: Math.PI }, { t: 'house', x: 23, z: -45, ry: Math.PI }, { t: 'house', x: 37, z: -45, ry: Math.PI },
+      { t: 'house', x: -55, z: 59, ry: Math.PI }, { t: 'house', x: -40, z: 59, ry: Math.PI }, { t: 'house', x: -24, z: 59, ry: Math.PI }, { t: 'house', x: -4, z: 59, ry: Math.PI },
+      { t: 'house', x: 24, z: 59, ry: Math.PI }, { t: 'house', x: 38, z: 59, ry: Math.PI },
+      { t: 'police', x: -12, z: -36, ry: 0, label: 'POLICE' }, { t: 'station', x: -14, z: -63, ry: Math.PI, label: 'STATION' },
+      { t: 'shop', x: 38, z: 22, ry: -Math.PI / 2, sign: 'BUTCHER', col: 0x8a2a24, label: 'BUTCHER' }, { t: 'shop', x: 38, z: 36, ry: -Math.PI / 2, sign: 'THE DROVERS ARMS', col: 0x2e4a3a },
+      { t: 'church', x: 66, z: -24, ry: -Math.PI / 2, label: 'CHURCH' }, { t: 'watertower', x: 64, z: -48 },
+      { t: 'stall', x: -6, z: 38, ry: Math.PI }, { t: 'stall', x: 2, z: 38, ry: Math.PI }, { t: 'stall', x: 22, z: 38, ry: Math.PI }, { t: 'stall', x: 28, z: 38, ry: Math.PI },
+      { t: 'stall', x: -6, z: 12, ry: 0 }, { t: 'stall', x: 2, z: 12, ry: 0 }, { t: 'stall', x: 22, z: 12, ry: 0 }, { t: 'stall', x: 28, z: 12, ry: 0 },
+      { t: 'rack', x: 31, z: 22, ry: -Math.PI / 2 }, { t: 'rack', x: -12, z: 68, ry: 0 }, { t: 'cart', x: -36, z: 30, ry: Math.PI / 2 }, { t: 'cart', x: 48, z: -30, ry: -Math.PI / 2 },
+      { t: 'fountain', x: -2, z: 25 },
+      { t: 'lamp', x: -50, z: 6.5 }, { t: 'lamp', x: -20, z: -6.5 }, { t: 'lamp', x: 10, z: 6.5 }, { t: 'lamp', x: 40, z: -6.5 }, { t: 'lamp', x: 57, z: 6.5 },
+      { t: 'lamp', x: -50, z: 43.5 }, { t: 'lamp', x: -8, z: 43.5 }, { t: 'lamp', x: 30, z: 54.5 }, { t: 'lamp', x: 6.5, z: 18 }, { t: 'lamp', x: 15.5, z: 34, ry: Math.PI },
+      { t: 'lamp', x: -26, z: -70.5 }, { t: 'lamp', x: 0, z: -70.5 }, { t: 'lamp', x: 26, z: -70.5 }, { t: 'lamp', x: 40, z: -56.5 },
+      { t: 'lamp', x: -30, z: -30 }, { t: 'lamp', x: 44, z: 26, ry: Math.PI }, { t: 'lamp', x: 44, z: -30, ry: Math.PI },
+      { t: 'crates', x: 36, z: -73 }, { t: 'barrels', x: -28, z: -73 }, { t: 'crates', x: -60, z: -28 }, { t: 'barrels', x: 30, z: 4.6 }, { t: 'well', x: -50, z: -28 },
+      { t: 'fence', x0: -64, z0: 70, x1: -30, z1: 70 }, { t: 'fence', x0: 18, z0: 70, x1: 50, z1: 70 }, { t: 'hay', x: -46, z: 76 }, { t: 'shed', x: 30, z: 80, ry: 0 }
+    ],
+    routes: [
+      [[-58, 0], [-34, 0], [11, 0], [48, 0], [56, 0], [48, 0], [11, 0], [-34, 0]],
+      [[-58, 49], [-34, 49], [11, 49], [48, 49], [56, 49], [48, 49], [11, 49], [-34, 49]],
+      [[-34, -53], [-34, 0], [-34, 49], [-34, 0]],
+      [[48, -53], [48, 0], [48, 49], [48, 0]],
+      [[-8, 17], [30, 17], [30, 33], [6, 33], [-8, 33]],
+      [[-58, -53], [-34, -53], [11, -53], [48, -53], [11, -53], [-34, -53]],
+      [[-26, -73], [0, -73], [24, -73], [40, -73], [24, -73], [0, -73]],
+      [[11, -53], [11, 0], [11, 49], [11, 0]],
+      [[-34, -53], [11, -53], [11, 0], [-34, 0]],
+      [[11, 0], [48, 0], [48, 49], [11, 49]]
+    ],
+    start: { river: 0, t: 30, off: 17 }, exfil: { river: 0, t: -104, off: 15 },
+    enemies: { farmers: 8, tools: ['baton'], look: 'police', whistle: true, names: ['Pike', 'Hobbs', 'Dunn', 'Fowler', 'Briggs', 'Marsh', 'Tate', 'Cole', 'Webb', 'Sykes', 'Rook', 'Hale', 'Voss', 'Kerr', 'Platt', 'Lowe', 'Ames', 'Baird'], dogs: 2, dogNames: ['Rex', 'Kaiser', 'Bruno', 'Max'], lanterns: true },
+    civilians: 12, depart: 840, waveFrom: 'from the police station', spotHint: 'You have been spotted. Break line of sight inside a house, or run for the river.',
+    waves: [{ at: 25, f: 2, d: 1 }, { at: 50, f: 2, tool: 'netgun', look: 'sergeant', rank: 'Sgt', title: 'Sergeants inbound', note: 'Net guns. They tangle you at range' }, { at: 75, f: 1, boss: { tool: 'whip', look: 'ring', name: 'Ringmaster Vale', title: 'The ringmaster is here', sub: 'He wants his star act back. Keep out of reach of the whip' } }],
+    need: 20, cap: 4, power: ['roast', 'melon', 'pepper', 'camo', 'hide', 'parrot', 'frenzy'],
+    insertion: ['OPERATION LAST STOP', 'DAY 4 · 20:05:31', 'Millbrook Junction', 'Callsign: MUDSLIDE'],
+    quotes: ['Lamplight gives you away. Keep to the dark side of the street.', 'A scream brings the constables. Eat the witness before they run.', 'Break line of sight, then duck into a house and wait.', 'Net guns only work at range. Close the gap or get out of sight.', 'The train will not wait. Watch the departure clock.']
   }
 ];
 const FARMER_NAMES = ['Dale', 'Earl', 'Wade', 'Rusty', 'Hank', 'Otis', 'Merle', 'Buck', 'Vern', 'Gus', 'Roy', 'Lyle', 'Floyd', 'Amos', 'Boone', 'Jeb', 'Cal', 'Walt', 'Abe', 'Ned', 'Clem', 'Hoyt', 'Ike', 'Jud'];
+const CIV_NAMES = ['Agnes', 'Bertie', 'Clara', 'Dottie', 'Elsie', 'Fred', 'Gwen', 'Harold', 'Ivy', 'Jack', 'Kitty', 'Len', 'Mabel', 'Norm', 'Olive', 'Percy', 'Queenie', 'Ron'];
 const DOG_NAMES = ['Biscuit', 'Rufus', 'Duke', 'Bandit', 'Ranger', 'Blue'];
 const DEATH_QUOTES = [
   'Never fight a farmer on dry land. The river is your ally.',
