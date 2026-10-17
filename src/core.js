@@ -76,7 +76,7 @@ const compMat = new THREE.ShaderMaterial({
   }`
 });
 
-const RQ = { quality: 'high', pr: 1, bloom: true, rtMain: null, rtA: null, rtB: null, w: 1, h: 1 };
+const RQ = { quality: matchMedia('(pointer: coarse)').matches ? 'low' : 'high', pr: 1, bloom: true, rtMain: null, rtA: null, rtB: null, w: 1, h: 1 };
 function makeRTs() {
   const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight);
   RQ.w = w; RQ.h = h;

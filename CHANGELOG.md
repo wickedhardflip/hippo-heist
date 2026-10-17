@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Touch controls for phones and tablets: a floating move stick, drag to look, and on-screen Bite, Feed, Burst, Bellow, Sneak and pause buttons.
+- Touch devices skip pointer lock, try to go fullscreen in landscape, and default to Low graphics.
+- Menus fit better on phones held sideways.
+
 ## 2.0
 
 A full rewrite: Hippo Heist is now a 3D first-person stealth game.
